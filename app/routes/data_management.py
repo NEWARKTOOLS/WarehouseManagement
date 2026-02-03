@@ -40,9 +40,9 @@ CSV_TEMPLATES = {
     'suppliers': {
         'name': 'Material Suppliers',
         'filename': 'suppliers_template.csv',
-        'headers': ['code', 'name', 'contact_name', 'email', 'phone', 'address', 'website', 'account_number', 'payment_terms', 'lead_time_days', 'minimum_order_kg', 'notes'],
+        'headers': ['code', 'name', 'contact_name', 'email', 'phone', 'website', 'address_line1', 'address_line2', 'city', 'postcode', 'country', 'account_number', 'payment_terms', 'lead_time_days', 'minimum_order_kg', 'notes'],
         'required': ['name'],
-        'example': ['DIST', 'Distrupol Ltd', 'Sales Team', 'sales@distrupol.com', '01onal 999888', '1 Polymer Park', 'https://distrupol.com', 'ACC-12345', 'Net 30', '5', '25', 'Primary PP supplier']
+        'example': ['DIST', 'Distrupol Ltd', 'Sales Team', 'sales@distrupol.com', '01234 999888', 'https://distrupol.com', '1 Polymer Park', '', 'Birmingham', 'B1 1AA', 'UK', 'ACC-12345', 'Net 30', '5', '25', 'Primary PP supplier']
     },
     'masterbatches': {
         'name': 'Masterbatches',
@@ -353,8 +353,12 @@ def import_supplier(row, result):
         existing.contact_name = row.get('contact_name', '').strip() or existing.contact_name
         existing.email = row.get('email', '').strip() or existing.email
         existing.phone = row.get('phone', '').strip() or existing.phone
-        existing.address = row.get('address', '').strip() or existing.address
         existing.website = row.get('website', '').strip() or existing.website
+        existing.address_line1 = row.get('address_line1', '').strip() or existing.address_line1
+        existing.address_line2 = row.get('address_line2', '').strip() or existing.address_line2
+        existing.city = row.get('city', '').strip() or existing.city
+        existing.postcode = row.get('postcode', '').strip() or existing.postcode
+        existing.country = row.get('country', '').strip() or existing.country
         existing.account_number = row.get('account_number', '').strip() or existing.account_number
         existing.payment_terms = row.get('payment_terms', '').strip() or existing.payment_terms
         existing.lead_time_days = int(row.get('lead_time_days') or 0) or existing.lead_time_days
@@ -368,8 +372,12 @@ def import_supplier(row, result):
             contact_name=row.get('contact_name', '').strip() or None,
             email=row.get('email', '').strip() or None,
             phone=row.get('phone', '').strip() or None,
-            address=row.get('address', '').strip() or None,
             website=row.get('website', '').strip() or None,
+            address_line1=row.get('address_line1', '').strip() or None,
+            address_line2=row.get('address_line2', '').strip() or None,
+            city=row.get('city', '').strip() or None,
+            postcode=row.get('postcode', '').strip() or None,
+            country=row.get('country', '').strip() or 'UK',
             account_number=row.get('account_number', '').strip() or None,
             payment_terms=row.get('payment_terms', '').strip() or None,
             lead_time_days=int(row.get('lead_time_days') or 0) or None,
@@ -754,7 +762,7 @@ def export_data(data_type):
 
     elif data_type == 'suppliers':
         for s in MaterialSupplier.query.order_by(MaterialSupplier.name).all():
-            writer.writerow([s.code, s.name, s.contact_name, s.email, s.phone, s.address, s.website, s.account_number, s.payment_terms, s.lead_time_days, s.minimum_order_kg, s.notes])
+            writer.writerow([s.code, s.name, s.contact_name, s.email, s.phone, s.website, s.address_line1, s.address_line2, s.city, s.postcode, s.country, s.account_number, s.payment_terms, s.lead_time_days, s.minimum_order_kg, s.notes])
 
     elif data_type == 'masterbatches':
         for mb in Masterbatch.query.order_by(Masterbatch.code).all():
@@ -822,7 +830,7 @@ def export_all_data():
 
             elif data_type == 'suppliers':
                 for s in MaterialSupplier.query.order_by(MaterialSupplier.name).all():
-                    writer.writerow([s.code, s.name, s.contact_name, s.email, s.phone, s.address, s.website, s.account_number, s.payment_terms, s.lead_time_days, s.minimum_order_kg, s.notes])
+                    writer.writerow([s.code, s.name, s.contact_name, s.email, s.phone, s.website, s.address_line1, s.address_line2, s.city, s.postcode, s.country, s.account_number, s.payment_terms, s.lead_time_days, s.minimum_order_kg, s.notes])
 
             elif data_type == 'masterbatches':
                 for mb in Masterbatch.query.order_by(Masterbatch.code).all():
