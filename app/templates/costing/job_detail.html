@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Job Costing - {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('costing.job_costing_list') }}">Job Costing</a></li>
+                    <li class="breadcrumb-item active">{{ order.order_number }}</li>
+                </ol>
+            </nav>
+            <h1>{{ order.item.sku if order.item else 'Production Order' }}</h1>
+            <p class="text-muted mb-0">{{ order.item.name if order.item else order.order_number }}</p>
+        </div>
+        <a href="{{ url_for('production.order_detail', order_id=order.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-box-seam me-1"></i>View Production Order
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Actual Costs Form -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-pencil-square me-2"></i>Record Actual Costs
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('costing.job_costing_update', order_id=order.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <h6 class="text-muted mb-3">Material</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">Material Used (kg)</label>
+                                <input type="number" step="0.1" name="actual_material_kg" class="form-control" value="{{ costing.actual_material_kg or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Cost (&pound;)</label>
+                                <input type="number" step="0.01" name="actual_material_cost" class="form-control" value="{{ costing.actual_material_cost or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Scrap Quantity</label>
+                                <input type="number" step="1" name="scrap_quantity" class="form-control" value="{{ costing.scrap_quantity|int if costing.scrap_quantity else '' }}">
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted mb-3">Labour & Machine</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <label class="form-label">Labour Hours</label>
+                                <input type="number" step="0.25" name="actual_labour_hours" class="form-control" value="{{ costing.actual_labour_hours or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Machine Hours</label>
+                                <input type="number" step="0.25" name="actual_machine_hours" class="form-control" value="{{ costing.actual_machine_hours or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Setup Hours</label>
+                                <input type="number" step="0.25" name="actual_setup_hours" class="form-control" value="{{ costing.actual_setup_hours or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Scrap Cost (&pound;)</label>
+                                <input type="number" step="0.01" name="scrap_cost" class="form-control" value="{{ costing.scrap_cost or '' }}">
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted mb-3">Revenue</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Actual Selling Price (&pound;)</label>
+                                <input type="number" step="0.01" name="actual_selling_price" class="form-control" value="{{ costing.actual_selling_price or '' }}" placeholder="Total value invoiced">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Save Costs
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Material Usage History -->
+            {% if materials %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-box-seam me-2"></i>Material Usage Records
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Material</th>
+                                <th>Batch</th>
+                                <th class="text-end">Issued</th>
+                                <th class="text-end">Used</th>
+                                <th class="text-end">Scrap</th>
+                                <th class="text-end">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in materials %}
+                            <tr>
+                                <td>{{ m.material_type or 'Unknown' }} {{ m.material_grade or '' }}</td>
+                                <td>{{ m.batch_number or '-' }}</td>
+                                <td class="text-end">{{ "{:.1f}".format(m.quantity_issued_kg) }} kg</td>
+                                <td class="text-end">{{ "{:.1f}".format(m.quantity_used_kg) }} kg</td>
+                                <td class="text-end">{{ "{:.1f}".format(m.quantity_scrap_kg) }} kg</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(m.total_cost) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Cost Summary -->
+            <div class="card mb-3 sticky-top" style="top: 1rem;">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-calculator me-2"></i>Cost Summary
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td>Material</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format(costing.actual_material_cost or 0) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Labour</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format(costing.actual_labour_cost or 0) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Machine</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format(costing.actual_machine_cost or 0) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Scrap/Rework</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format((costing.scrap_cost or 0) + (costing.rework_cost or 0)) }}</td>
+                        </tr>
+                        <tr class="table-secondary">
+                            <th>Total Cost</th>
+                            <th class="text-end">&pound;{{ "{:,.2f}".format(costing.actual_total_cost) }}</th>
+                        </tr>
+                        {% if costing.actual_selling_price %}
+                        <tr class="table-success">
+                            <td>Selling Price</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format(costing.actual_selling_price) }}</td>
+                        </tr>
+                        <tr class="{% if costing.gross_profit >= 0 %}table-success{% else %}table-danger{% endif %}">
+                            <th>Profit</th>
+                            <th class="text-end">&pound;{{ "{:,.2f}".format(costing.gross_profit) }}</th>
+                        </tr>
+                        <tr>
+                            <td>Margin</td>
+                            <td class="text-end {% if costing.gross_margin_percent >= 25 %}text-success{% elif costing.gross_margin_percent >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                                <strong>{{ "{:.1f}".format(costing.gross_margin_percent) }}%</strong>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+
+                    {% if costing.quoted_total_cost %}
+                    <hr>
+                    <h6 class="text-muted">vs Quoted</h6>
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td>Quoted Cost</td>
+                            <td class="text-end">&pound;{{ "{:,.2f}".format(costing.quoted_total_cost) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Variance</td>
+                            <td class="text-end">
+                                <span class="badge bg-{{ 'danger' if costing.cost_variance_percent > 10 else 'warning' if costing.cost_variance_percent > 0 else 'success' }}">
+                                    {% if costing.cost_variance_percent > 0 %}+{% endif %}{{ "{:.1f}".format(costing.cost_variance_percent) }}%
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Order Info -->
+            <div class="card mb-3">
+                <div class="card-header">Production Details</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Order #</th>
+                            <td>{{ order.order_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Quantity</th>
+                            <td>{{ order.quantity_required|int }} units</td>
+                        </tr>
+                        <tr>
+                            <th>Produced</th>
+                            <td>{{ order.quantity_produced|int }} units</td>
+                        </tr>
+                        <tr>
+                            <th>Machine</th>
+                            <td>{{ order.machine.name if order.machine else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Customer</th>
+                            <td>{{ order.customer.name if order.customer else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>
+                                <span class="badge bg-{{ 'success' if order.status == 'completed' else 'primary' }}">
+                                    {{ order.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Per Unit Breakdown -->
+            {% if order.quantity_produced and order.quantity_produced > 0 %}
+            <div class="card border-info">
+                <div class="card-header bg-info bg-opacity-10">Per Unit Cost</div>
+                <div class="card-body">
+                    {% set cost_per_unit = costing.actual_total_cost / order.quantity_produced %}
+                    <div class="text-center">
+                        <div class="fs-2 fw-bold text-info">&pound;{{ "{:,.4f}".format(cost_per_unit) }}</div>
+                        <div class="text-muted">per unit</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

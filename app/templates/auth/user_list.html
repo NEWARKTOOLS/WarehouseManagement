@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-people me-2"></i>User Management</h1>
+        <a href="{{ url_for('auth.user_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add User
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td><strong>{{ user.username }}</strong></td>
+                            <td>{{ user.full_name }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if user.role == 'admin' else 'secondary' }}">
+                                    {{ user.role|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if user.is_active else 'danger' }}">
+                                    {{ 'Active' if user.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                            <td>{{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Never' }}</td>
+                            <td class="text-end">
+                                <a href="{{ url_for('auth.user_edit', user_id=user.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

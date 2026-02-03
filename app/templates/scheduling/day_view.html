@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Schedule - {{ view_date.strftime('%A %d %B') }}{% endblock %}
+{% block mobile_title %}{{ view_date.strftime('%d %b') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('scheduling.schedule_index') }}">Schedule</a></li>
+                    <li class="breadcrumb-item active">{{ view_date.strftime('%d/%m/%Y') }}</li>
+                </ol>
+            </nav>
+            <h1>{{ view_date.strftime('%A') }} <small class="text-muted">{{ view_date.strftime('%d %B %Y') }}</small></h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('scheduling.day_view', date_str=prev_date.strftime('%Y-%m-%d')) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-chevron-left"></i> Previous
+            </a>
+            {% if view_date != today %}
+            <a href="{{ url_for('scheduling.day_view', date_str=today.strftime('%Y-%m-%d')) }}" class="btn btn-outline-primary">
+                Today
+            </a>
+            {% endif %}
+            <a href="{{ url_for('scheduling.day_view', date_str=next_date.strftime('%Y-%m-%d')) }}" class="btn btn-outline-secondary">
+                Next <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for machine_id, data in jobs_by_machine.items() %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ data.machine.name }}</strong>
+                        <br><small class="text-muted">{{ data.machine.tonnage }}T {{ data.machine.manufacturer or '' }}</small>
+                    </div>
+                    <span class="badge bg-{{ 'success' if data.machine.status == 'running' else 'secondary' if data.machine.status == 'idle' else 'warning' }}">
+                        {{ data.machine.status }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    {% if data.jobs %}
+                    <div class="list-group list-group-flush">
+                        {% for job in data.jobs %}
+                        <a href="{{ url_for('scheduling.job_detail', job_id=job.id) }}"
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <span class="badge bg-{{ 'success' if job.status == 'in_progress' else 'primary' if job.status == 'scheduled' else 'secondary' }} me-2">
+                                        {{ loop.index }}
+                                    </span>
+                                    <strong>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</strong>
+                                </div>
+                                {% if job.is_urgent %}
+                                <span class="badge bg-danger">URGENT</span>
+                                {% elif job.is_warning %}
+                                <span class="badge bg-warning">Soon</span>
+                                {% endif %}
+                            </div>
+
+                            <p class="mb-1 small">{{ job.production_order.item.name if job.production_order and job.production_order.item else '' }}</p>
+
+                            <div class="row g-2 small">
+                                <div class="col-6">
+                                    <i class="bi bi-boxes text-muted"></i>
+                                    <strong>{{ job.production_order.quantity_required|int if job.production_order else 0 }}</strong> pcs
+                                </div>
+                                {% if job.production_order and job.production_order.item %}
+                                <div class="col-6">
+                                    <i class="bi bi-palette text-muted"></i>
+                                    {{ job.production_order.item.color or 'N/A' }}
+                                </div>
+                                <div class="col-6">
+                                    <i class="bi bi-box text-muted"></i>
+                                    {{ job.production_order.item.material_grade or 'N/A' }}
+                                </div>
+                                {% endif %}
+                                {% if job.production_order and job.production_order.mould %}
+                                <div class="col-6">
+                                    <i class="bi bi-tools text-muted"></i>
+                                    {{ job.production_order.mould.mould_number }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {% if job.production_order and job.production_order.due_date %}
+                            <div class="mt-2 small text-{{ job.urgency_class }}">
+                                <i class="bi bi-calendar-check"></i>
+                                Due: {{ job.production_order.due_date.strftime('%d/%m/%Y') }}
+                            </div>
+                            {% endif %}
+
+                            {% if job.production_order and job.production_order.sales_order and job.production_order.sales_order.customer %}
+                            <div class="mt-1 small text-info">
+                                <i class="bi bi-building"></i>
+                                {{ job.production_order.sales_order.customer.name }}
+                            </div>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                        <p class="mb-0">No jobs scheduled</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if data.jobs %}
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">{{ data.jobs|length }} job{{ 's' if data.jobs|length != 1 else '' }} scheduled</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

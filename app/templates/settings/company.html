@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Company Settings{% endblock %}
+{% block mobile_title %}Company{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Settings</a></li>
+                    <li class="breadcrumb-item active">Company</li>
+                </ol>
+            </nav>
+            <h1>Company Settings</h1>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Company Details -->
+                <div class="card mb-3">
+                    <div class="card-header">Company Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Company Name *</label>
+                                <input type="text" class="form-control" name="company_name"
+                                       value="{{ settings.company_name or '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Trading Name</label>
+                                <input type="text" class="form-control" name="trading_name"
+                                       value="{{ settings.trading_name or '' }}"
+                                       placeholder="If different from company name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Company Number</label>
+                                <input type="text" class="form-control" name="company_number"
+                                       value="{{ settings.company_number or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">VAT Number</label>
+                                <input type="text" class="form-control" name="vat_number"
+                                       value="{{ settings.vat_number or '' }}" placeholder="GB123456789">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div class="card mb-3">
+                    <div class="card-header">Address</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Address Line 1</label>
+                                <input type="text" class="form-control" name="address_line1"
+                                       value="{{ settings.address_line1 or '' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Address Line 2</label>
+                                <input type="text" class="form-control" name="address_line2"
+                                       value="{{ settings.address_line2 or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">City</label>
+                                <input type="text" class="form-control" name="city"
+                                       value="{{ settings.city or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">County</label>
+                                <input type="text" class="form-control" name="county"
+                                       value="{{ settings.county or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Postcode</label>
+                                <input type="text" class="form-control" name="postcode"
+                                       value="{{ settings.postcode or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Country</label>
+                                <input type="text" class="form-control" name="country"
+                                       value="{{ settings.country or 'United Kingdom' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact -->
+                <div class="card mb-3">
+                    <div class="card-header">Contact Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Phone</label>
+                                <input type="text" class="form-control" name="phone"
+                                       value="{{ settings.phone or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email"
+                                       value="{{ settings.email or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Website</label>
+                                <input type="text" class="form-control" name="website"
+                                       value="{{ settings.website or '' }}" placeholder="https://">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banking -->
+                <div class="card mb-3">
+                    <div class="card-header">Bank Details (for Packing Lists)</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Bank Name</label>
+                                <input type="text" class="form-control" name="bank_name"
+                                       value="{{ settings.bank_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Account Name</label>
+                                <input type="text" class="form-control" name="account_name"
+                                       value="{{ settings.account_name or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Sort Code</label>
+                                <input type="text" class="form-control" name="sort_code"
+                                       value="{{ settings.sort_code or '' }}" placeholder="00-00-00">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Account Number</label>
+                                <input type="text" class="form-control" name="account_number"
+                                       value="{{ settings.account_number or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">IBAN</label>
+                                <input type="text" class="form-control" name="iban"
+                                       value="{{ settings.iban or '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">SWIFT/BIC</label>
+                                <input type="text" class="form-control" name="swift_bic"
+                                       value="{{ settings.swift_bic or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Packing List Settings -->
+                <div class="card mb-3">
+                    <div class="card-header">Packing List Settings</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Footer Text</label>
+                            <textarea class="form-control" name="packing_list_footer" rows="2"
+                                      placeholder="Text to appear at bottom of packing lists">{{ settings.packing_list_footer or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="form-label">Terms & Conditions</label>
+                            <textarea class="form-control" name="packing_list_terms" rows="3"
+                                      placeholder="Terms to print on packing lists">{{ settings.packing_list_terms or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Logo -->
+                <div class="card mb-3">
+                    <div class="card-header">Company Logo</div>
+                    <div class="card-body">
+                        {% if settings.logo_filename %}
+                        <div class="mb-3 text-center">
+                            <img src="{{ url_for('static', filename='img/' + settings.logo_filename) }}"
+                                 alt="Company Logo" class="img-fluid" style="max-height: 100px;">
+                        </div>
+                        <form method="POST" action="{{ url_for('settings.remove_logo') }}" class="mb-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                <i class="bi bi-trash me-1"></i> Remove Logo
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <label class="form-label">{{ 'Upload New Logo' if settings.logo_filename else 'Upload Logo' }}</label>
+                        <input type="file" class="form-control" name="logo" accept="image/*">
+                        <div class="form-text">PNG, JPG, or SVG. Max 2MB recommended.</div>
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="card">
+                    <div class="card-header">Preview</div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">This is how your info will appear on packing lists:</p>
+                        <div class="border rounded p-2 bg-light" style="font-size: 0.85rem;">
+                            {% if settings.logo_filename %}
+                            <img src="{{ url_for('static', filename='img/' + settings.logo_filename) }}"
+                                 alt="Logo" style="max-height: 40px;" class="mb-2">
+                            <br>
+                            {% endif %}
+                            <strong>{{ settings.company_name or 'Your Company Name' }}</strong><br>
+                            {{ settings.address_line1 or 'Address Line 1' }}<br>
+                            {{ settings.city or 'City' }} {{ settings.postcode or 'Postcode' }}<br>
+                            {% if settings.phone %}Tel: {{ settings.phone }}<br>{% endif %}
+                            {% if settings.vat_number %}VAT: {{ settings.vat_number }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mb-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i> Save Settings
+            </button>
+            <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

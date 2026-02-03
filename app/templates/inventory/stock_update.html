@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Update{% endblock %}
+{% block mobile_title %}Stock Update{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-arrow-repeat me-2"></i>Stock Update</h1>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <a href="#addStock" class="quick-action-btn w-100 h-100 text-decoration-none" data-bs-toggle="collapse">
+                <i class="bi bi-plus-circle text-success"></i>
+                <span>Add Stock</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="#removeStock" class="quick-action-btn w-100 h-100 text-decoration-none" data-bs-toggle="collapse">
+                <i class="bi bi-dash-circle text-danger"></i>
+                <span>Remove Stock</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="#moveStock" class="quick-action-btn w-100 h-100 text-decoration-none" data-bs-toggle="collapse">
+                <i class="bi bi-arrows-move text-info"></i>
+                <span>Move Stock</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{{ url_for('main.scan') }}" class="quick-action-btn w-100 h-100 text-decoration-none">
+                <i class="bi bi-upc-scan text-primary"></i>
+                <span>Scan Item</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Add Stock Form -->
+    <div class="collapse show" id="addStock">
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-plus-circle me-2"></i>Add Stock (Receive Goods)
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('inventory.quick_add_stock') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Item *</label>
+                            <select class="form-select" name="item_id" required id="addItemSelect">
+                                <option value="">Search or select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}" data-sku="{{ item.sku }}">
+                                    {{ item.sku }} - {{ item.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Location *</label>
+                            <select class="form-select" name="location_id" required>
+                                <option value="">Select location...</option>
+                                {% for zone, locs in zones.items() %}
+                                <optgroup label="{{ zone or 'No Zone' }}">
+                                    {% for loc in locs %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" name="quantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus-lg me-1"></i> Add
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Reference (optional)</label>
+                            <input type="text" class="form-control" name="reference" placeholder="PO number, delivery note, etc.">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Stock Form -->
+    <div class="collapse" id="removeStock">
+        <div class="card mb-3">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-dash-circle me-2"></i>Remove Stock
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('inventory.quick_remove_stock') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Item *</label>
+                            <select class="form-select" name="item_id" required>
+                                <option value="">Search or select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}">{{ item.sku }} - {{ item.name }} ({{ item.total_stock }} in stock)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">From Location *</label>
+                            <select class="form-select" name="location_id" required>
+                                <option value="">Select location...</option>
+                                {% for zone, locs in zones.items() %}
+                                <optgroup label="{{ zone or 'No Zone' }}">
+                                    {% for loc in locs %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" name="quantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="bi bi-dash-lg me-1"></i> Remove
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Reason *</label>
+                            <select class="form-select" name="reason" required>
+                                <option value="">Select reason...</option>
+                                <option value="damaged">Damaged</option>
+                                <option value="scrapped">Scrapped</option>
+                                <option value="sample">Sample</option>
+                                <option value="adjustment">Stock Adjustment</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Stock Form -->
+    <div class="collapse" id="moveStock">
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-arrows-move me-2"></i>Move Stock Between Locations
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('inventory.quick_move_stock') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Item *</label>
+                            <select class="form-select" name="item_id" required>
+                                <option value="">Search or select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}">{{ item.sku }} - {{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">From Location *</label>
+                            <select class="form-select" name="from_location_id" required>
+                                <option value="">Select...</option>
+                                {% for zone, locs in zones.items() %}
+                                <optgroup label="{{ zone or 'No Zone' }}">
+                                    {% for loc in locs %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">To Location *</label>
+                            <select class="form-select" name="to_location_id" required>
+                                <option value="">Select...</option>
+                                {% for zone, locs in zones.items() %}
+                                <optgroup label="{{ zone or 'No Zone' }}">
+                                    {% for loc in locs %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" name="quantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-info">
+                                <i class="bi bi-arrows-move me-1"></i> Move Stock
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Stock Movements -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-clock-history me-2"></i>Recent Stock Movements
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Item</th>
+                            <th>Type</th>
+                            <th class="text-end">Qty</th>
+                            <th>Location</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in recent_movements %}
+                        <tr>
+                            <td><small>{{ mov.created_at.strftime('%d/%m %H:%M') }}</small></td>
+                            <td>
+                                <a href="{{ url_for('inventory.item_detail', item_id=mov.item_id) }}">
+                                    {{ mov.item.sku }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if mov.quantity > 0 else 'danger' if mov.quantity < 0 else 'secondary' }}">
+                                    {{ mov.movement_type|title }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <span class="{{ 'text-success' if mov.quantity > 0 else 'text-danger' }}">
+                                    {{ '+' if mov.quantity > 0 else '' }}{{ mov.quantity }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if mov.to_location %}{{ mov.to_location.code }}{% endif %}
+                                {% if mov.from_location %}{{ mov.from_location.code }}{% endif %}
+                            </td>
+                            <td><small>{{ mov.user.username if mov.user else '-' }}</small></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-3 text-muted">No recent movements</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Make only one collapse open at a time
+document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        // Close all other collapses
+        document.querySelectorAll('.collapse.show').forEach(col => {
+            if (col.id !== this.getAttribute('href').substring(1)) {
+                bootstrap.Collapse.getInstance(col)?.hide();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Job Details{% endblock %}
+{% block mobile_title %}Job{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('scheduling.schedule_index') }}">Schedule</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('scheduling.machine_schedule', machine_id=job.machine_id) }}">{{ job.machine.name if job.machine else 'Machine' }}</a></li>
+                    <li class="breadcrumb-item active">Job Details</li>
+                </ol>
+            </nav>
+            <h1>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'Job' }}</h1>
+            {% if job.production_order and job.production_order.item %}
+            <p class="text-muted mb-0">{{ job.production_order.item.name }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-{{ 'success' if job.status == 'in_progress' else 'primary' if job.status == 'scheduled' else 'secondary' }} fs-6">
+                {{ job.status|upper }}
+            </span>
+            {% if job.is_urgent %}
+            <span class="badge bg-danger fs-6">URGENT</span>
+            {% elif job.is_warning %}
+            <span class="badge bg-warning fs-6">DUE SOON</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Job Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Job Information
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Production Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th style="width: 40%">Order #</th>
+                                    <td>{{ job.production_order.order_number if job.production_order else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Quantity</th>
+                                    <td><strong class="fs-5">{{ job.production_order.quantity_required|int if job.production_order else 0 }}</strong> pcs</td>
+                                </tr>
+                                <tr>
+                                    <th>Produced</th>
+                                    <td>{{ job.production_order.quantity_produced|int if job.production_order else 0 }} pcs</td>
+                                </tr>
+                                <tr>
+                                    <th>Priority</th>
+                                    <td>
+                                        {% set priority = job.production_order.priority if job.production_order else 5 %}
+                                        <span class="badge bg-{{ 'danger' if priority <= 3 else 'warning' if priority <= 5 else 'secondary' }}">
+                                            P{{ priority }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Scheduled</th>
+                                    <td>{{ job.scheduled_date.strftime('%d/%m/%Y') }}</td>
+                                </tr>
+                                {% if job.production_order and job.production_order.due_date %}
+                                <tr>
+                                    <th>Due Date</th>
+                                    <td class="text-{{ job.urgency_class }} fw-bold">{{ job.production_order.due_date.strftime('%d/%m/%Y') }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Part & Material</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th style="width: 40%">SKU</th>
+                                    <td><strong>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</strong></td>
+                                </tr>
+                                {% if job.production_order and job.production_order.item %}
+                                <tr>
+                                    <th>Material</th>
+                                    <td><span class="badge bg-info">{{ job.production_order.item.material_grade or 'Not specified' }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Color</th>
+                                    <td><span class="badge bg-secondary">{{ job.production_order.item.color or 'Not specified' }}</span></td>
+                                </tr>
+                                {% endif %}
+                                {% if job.production_order and job.production_order.mould %}
+                                <tr>
+                                    <th>Mould</th>
+                                    <td>
+                                        <strong>{{ job.production_order.mould.mould_number }}</strong>
+                                        {% if job.production_order.mould.name %}
+                                        <br><small class="text-muted">{{ job.production_order.mould.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Cavities</th>
+                                    <td>{{ job.production_order.mould.num_cavities or 1 }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if job.production_order and job.production_order.sales_order %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Customer Order</h6>
+                    <div class="alert alert-info mb-0">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>{{ job.production_order.sales_order.customer.name if job.production_order.sales_order.customer else 'N/A' }}</strong>
+                                <br><small>Order: {{ job.production_order.sales_order.order_number }}</small>
+                            </div>
+                            {% if job.production_order.sales_order.required_date %}
+                            <div class="col-md-6 text-md-end">
+                                <strong>Required by: {{ job.production_order.sales_order.required_date.strftime('%d/%m/%Y') }}</strong>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Setup Sheet -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-file-earmark-text me-2"></i>Setup Sheet
+                </div>
+                <div class="card-body">
+                    {% if setup_sheet %}
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Machine Settings</h6>
+                            <table class="table table-sm">
+                                {% if setup_sheet.program_number %}
+                                <tr><th>Program #</th><td><strong>{{ setup_sheet.program_number }}</strong></td></tr>
+                                {% endif %}
+                                {% if setup_sheet.cycle_time %}
+                                <tr><th>Cycle Time</th><td>{{ setup_sheet.cycle_time }} sec</td></tr>
+                                {% endif %}
+                                {% if setup_sheet.mould_temp %}
+                                <tr><th>Mould Temp</th><td>{{ setup_sheet.mould_temp }} &deg;C</td></tr>
+                                {% endif %}
+                                {% if setup_sheet.nozzle_temp %}
+                                <tr><th>Nozzle Temp</th><td>{{ setup_sheet.nozzle_temp }} &deg;C</td></tr>
+                                {% endif %}
+                            </table>
+
+                            <h6 class="text-muted mb-2 mt-3">Barrel Temperatures</h6>
+                            <table class="table table-sm">
+                                {% if setup_sheet.barrel_temp_zone1 %}<tr><th>Zone 1</th><td>{{ setup_sheet.barrel_temp_zone1 }} &deg;C</td></tr>{% endif %}
+                                {% if setup_sheet.barrel_temp_zone2 %}<tr><th>Zone 2</th><td>{{ setup_sheet.barrel_temp_zone2 }} &deg;C</td></tr>{% endif %}
+                                {% if setup_sheet.barrel_temp_zone3 %}<tr><th>Zone 3</th><td>{{ setup_sheet.barrel_temp_zone3 }} &deg;C</td></tr>{% endif %}
+                                {% if setup_sheet.barrel_temp_zone4 %}<tr><th>Zone 4</th><td>{{ setup_sheet.barrel_temp_zone4 }} &deg;C</td></tr>{% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Injection Parameters</h6>
+                            <table class="table table-sm">
+                                {% if setup_sheet.injection_pressure %}<tr><th>Injection Pressure</th><td>{{ setup_sheet.injection_pressure }}</td></tr>{% endif %}
+                                {% if setup_sheet.injection_speed %}<tr><th>Injection Speed</th><td>{{ setup_sheet.injection_speed }}</td></tr>{% endif %}
+                                {% if setup_sheet.injection_time %}<tr><th>Injection Time</th><td>{{ setup_sheet.injection_time }} sec</td></tr>{% endif %}
+                                {% if setup_sheet.holding_pressure %}<tr><th>Holding Pressure</th><td>{{ setup_sheet.holding_pressure }}</td></tr>{% endif %}
+                                {% if setup_sheet.holding_time %}<tr><th>Holding Time</th><td>{{ setup_sheet.holding_time }} sec</td></tr>{% endif %}
+                                {% if setup_sheet.cooling_time %}<tr><th>Cooling Time</th><td>{{ setup_sheet.cooling_time }} sec</td></tr>{% endif %}
+                            </table>
+
+                            <h6 class="text-muted mb-2 mt-3">Material</h6>
+                            <table class="table table-sm">
+                                {% if setup_sheet.material_type %}<tr><th>Type</th><td>{{ setup_sheet.material_type }}</td></tr>{% endif %}
+                                {% if setup_sheet.material_grade %}<tr><th>Grade</th><td>{{ setup_sheet.material_grade }}</td></tr>{% endif %}
+                                {% if setup_sheet.color %}<tr><th>Color</th><td>{{ setup_sheet.color }}</td></tr>{% endif %}
+                                {% if setup_sheet.masterbatch_ratio %}<tr><th>Masterbatch</th><td>{{ setup_sheet.masterbatch_ratio }}</td></tr>{% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if setup_sheet.special_instructions %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Special Instructions</h6>
+                    <div class="alert alert-warning mb-0">
+                        {{ setup_sheet.special_instructions }}
+                    </div>
+                    {% endif %}
+
+                    {% if setup_sheet.notes %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Notes</h6>
+                    <p class="mb-0">{{ setup_sheet.notes }}</p>
+                    {% endif %}
+
+                    {% if setup_sheet.setup_sheet_pdf %}
+                    <hr>
+                    <a href="{{ url_for('static', filename='uploads/' + setup_sheet.setup_sheet_pdf) }}" class="btn btn-warning" target="_blank">
+                        <i class="bi bi-file-pdf me-2"></i>View PDF Setup Sheet
+                    </a>
+                    {% endif %}
+
+                    {% if setup_sheet.image_filename %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Setup Image</h6>
+                    <img src="{{ url_for('static', filename='uploads/' + setup_sheet.image_filename) }}" class="img-fluid rounded" alt="Setup sheet image">
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-file-earmark-x fs-1 d-block mb-2"></i>
+                        <p class="mb-0">No setup sheet available for this part/mould combination</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- What's Next -->
+            {% if next_job %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-arrow-right-circle me-2"></i>What's Next
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5>{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</h5>
+                            <p class="text-muted">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</p>
+                        </div>
+                        <a href="{{ url_for('scheduling.job_detail', job_id=next_job.id) }}" class="btn btn-outline-info">View Details</a>
+                    </div>
+
+                    {% if changeover_info %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <strong><i class="bi bi-arrow-repeat me-2"></i>Changeover Required:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% if changeover_info.mould_change %}
+                            <li><strong>Mould change:</strong> {{ changeover_info.current_mould.mould_number if changeover_info.current_mould else 'Current' }} &rarr; {{ changeover_info.next_mould.mould_number if changeover_info.next_mould else 'Next' }}</li>
+                            {% endif %}
+                            {% if changeover_info.material_change %}
+                            <li><strong>Material change required</strong></li>
+                            {% endif %}
+                            {% if changeover_info.color_change %}
+                            <li><strong>Color change required</strong></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">Actions</div>
+                <div class="card-body d-grid gap-2">
+                    {% if job.status == 'scheduled' %}
+                    <form method="POST" action="{{ url_for('scheduling.start_job', job_id=job.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-play-fill me-2"></i>Start Job
+                        </button>
+                    </form>
+                    {% elif job.status == 'in_progress' %}
+                    <a href="{{ url_for('scheduling.complete_job', job_id=job.id) }}" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-lg me-2"></i>Complete Job
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('scheduling.machine_schedule', machine_id=job.machine_id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-gear me-2"></i>Machine Queue
+                    </a>
+
+                    {% if job.status == 'scheduled' %}
+                    <form method="POST" action="{{ url_for('scheduling.unschedule_job', job_id=job.id) }}"
+                          onsubmit="return confirm('Remove this job from the schedule?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-x-circle me-2"></i>Unschedule
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Machine Info -->
+            <div class="card mb-4">
+                <div class="card-header">Machine</div>
+                <div class="card-body">
+                    <h5>{{ job.machine.name if job.machine else 'N/A' }}</h5>
+                    <p class="text-muted mb-2">{{ job.machine.tonnage if job.machine else '' }}T {{ job.machine.manufacturer if job.machine else '' }}</p>
+                    <span class="badge bg-{{ 'success' if job.machine and job.machine.status == 'running' else 'secondary' }}">
+                        {{ job.machine.status if job.machine else 'Unknown' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Job Notes -->
+            {% if job.notes or (job.production_order and job.production_order.notes) %}
+            <div class="card mb-4">
+                <div class="card-header">Notes</div>
+                <div class="card-body">
+                    {% if job.notes %}
+                    <p>{{ job.notes }}</p>
+                    {% endif %}
+                    {% if job.production_order and job.production_order.notes %}
+                    <p class="text-muted mb-0">{{ job.production_order.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

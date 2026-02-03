@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Movements Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Stock Movements</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-arrow-left-right me-2"></i>Stock Movements</h1>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-2">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">End Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Type</label>
+                    <select class="form-select" name="type">
+                        <option value="">All Types</option>
+                        <option value="receive" {% if movement_type == 'receive' %}selected{% endif %}>Receive</option>
+                        <option value="move" {% if movement_type == 'move' %}selected{% endif %}>Move</option>
+                        <option value="adjust" {% if movement_type == 'adjust' %}selected{% endif %}>Adjust</option>
+                        <option value="production" {% if movement_type == 'production' %}selected{% endif %}>Production</option>
+                        <option value="dispatch" {% if movement_type == 'dispatch' %}selected{% endif %}>Dispatch</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Item</label>
+                    <select class="form-select" name="item_id">
+                        <option value="">All Items</option>
+                        {% for item in items %}
+                        <option value="{{ item.id }}" {% if item_id == item.id %}selected{% endif %}>{{ item.sku }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+        <div class="card-header">
+            {{ movements|length }} Movement(s) Found
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Type</th>
+                            <th>Item</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th class="text-end">Qty</th>
+                            <th>Reference</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movement in movements %}
+                        <tr>
+                            <td>{{ movement.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <span class="badge bg-{% if movement.movement_type == 'receive' %}success{% elif movement.movement_type == 'dispatch' %}danger{% elif movement.movement_type == 'adjust' %}warning{% else %}secondary{% endif %}">
+                                    {{ movement.movement_type|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('inventory.item_detail', item_id=movement.item_id) }}">
+                                    {{ movement.item.sku }}
+                                </a>
+                            </td>
+                            <td>{{ movement.from_location.code if movement.from_location else '-' }}</td>
+                            <td>{{ movement.to_location.code if movement.to_location else '-' }}</td>
+                            <td class="text-end {% if movement.quantity > 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if movement.quantity > 0 %}+{% endif %}{{ "{:,.0f}".format(movement.quantity) }}
+                            </td>
+                            <td>{{ movement.reference or '-' }}</td>
+                            <td>{{ movement.user.username if movement.user else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No movements found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if movements|length >= 500 %}
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>Results limited to 500 records. Use filters to narrow your search.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Move Stock{% endblock %}
+{% block mobile_title %}Move Stock{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-arrows-move me-2"></i>Move Stock</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventory.move_stock') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="form-label">Item *</label>
+                            <select class="form-select" name="item_id" id="itemSelect" required>
+                                <option value="">Select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}" data-unit="{{ item.unit_of_measure }}">{{ item.sku }} - {{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">From Location *</label>
+                                <select class="form-select" name="from_location_id" id="fromLocation" required>
+                                    <option value="">Select...</option>
+                                    {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted" id="fromStock"></small>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">To Location *</label>
+                                <select class="form-select" name="to_location_id" id="toLocation" required>
+                                    <option value="">Select...</option>
+                                    {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.code }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <div class="input-group" data-quantity-control>
+                                <button type="button" class="btn btn-outline-secondary" data-minus>
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <input type="number" class="form-control text-center" name="quantity" id="quantity" value="1" min="0.01" step="1" required>
+                                <button type="button" class="btn btn-outline-secondary" data-plus>
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" id="moveAllBtn" title="Move all available stock">
+                                    <i class="bi bi-box-arrow-right"></i> All
+                                </button>
+                            </div>
+                            <small class="text-muted" id="maxQtyHint"></small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <select class="form-select" name="reason">
+                                <option value="">Select reason...</option>
+                                <option value="Reorganization">Reorganization</option>
+                                <option value="Production">Production</option>
+                                <option value="Picking">Picking</option>
+                                <option value="Quality Hold">Quality Hold</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Optional"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-info btn-lg">
+                                <i class="bi bi-check-lg me-2"></i> Move Stock
+                            </button>
+                            <a href="{{ url_for('inventory.item_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const itemSelect = document.getElementById('itemSelect');
+const fromLocation = document.getElementById('fromLocation');
+const fromStockDisplay = document.getElementById('fromStock');
+const quantityInput = document.getElementById('quantity');
+const moveAllBtn = document.getElementById('moveAllBtn');
+const maxQtyHint = document.getElementById('maxQtyHint');
+
+let currentMaxQty = 0;
+
+async function updateFromStock() {
+    const itemId = itemSelect.value;
+    const locationId = fromLocation.value;
+
+    if (!itemId || !locationId) {
+        fromStockDisplay.textContent = '';
+        maxQtyHint.textContent = '';
+        currentMaxQty = 0;
+        moveAllBtn.disabled = true;
+        return;
+    }
+
+    try {
+        const response = await fetch(`/inventory/api/${itemId}/stock`);
+        const data = await response.json();
+
+        const stock = data.stock_levels.find(sl => sl.location_id == locationId);
+        if (stock && stock.available > 0) {
+            currentMaxQty = stock.available;
+            fromStockDisplay.innerHTML = `<span class="text-success fw-bold">Available: ${stock.available}</span> ${data.unit || 'units'}`;
+            maxQtyHint.textContent = `Max: ${stock.available}`;
+            moveAllBtn.disabled = false;
+
+            // Auto-set to max quantity if current value is 0 or 1 (default)
+            if (parseFloat(quantityInput.value) <= 1) {
+                quantityInput.value = stock.available;
+            }
+        } else {
+            currentMaxQty = 0;
+            fromStockDisplay.innerHTML = '<span class="text-danger">No stock at this location</span>';
+            maxQtyHint.textContent = '';
+            moveAllBtn.disabled = true;
+        }
+    } catch (err) {
+        fromStockDisplay.textContent = '';
+        maxQtyHint.textContent = '';
+        currentMaxQty = 0;
+        moveAllBtn.disabled = true;
+    }
+}
+
+// Move All button click
+moveAllBtn.addEventListener('click', function() {
+    if (currentMaxQty > 0) {
+        quantityInput.value = currentMaxQty;
+    }
+});
+
+// Validate quantity doesn't exceed max
+quantityInput.addEventListener('change', function() {
+    if (currentMaxQty > 0 && parseFloat(this.value) > currentMaxQty) {
+        this.value = currentMaxQty;
+        maxQtyHint.innerHTML = '<span class="text-warning">Adjusted to max available</span>';
+    }
+});
+
+itemSelect.addEventListener('change', updateFromStock);
+fromLocation.addEventListener('change', updateFromStock);
+</script>
+{% endblock %}

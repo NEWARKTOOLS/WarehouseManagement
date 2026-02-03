@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}Production Schedule{% endblock %}
+{% block mobile_title %}Schedule{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-calendar3 me-2"></i>Production Schedule</h1>
+            <p class="text-muted mb-0">Week of {{ week_start.strftime('%d %b') }} - {{ week_end.strftime('%d %b %Y') }}</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <a href="{{ url_for('scheduling.sorting_queue') }}" class="btn btn-outline-warning">
+                <i class="bi bi-inbox"></i> Sorting Queue
+            </a>
+            <div class="btn-group">
+                <a href="{{ url_for('scheduling.schedule_index', week=week_offset-1) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+                <a href="{{ url_for('scheduling.schedule_index', week=0) }}" class="btn btn-outline-secondary {% if week_offset == 0 %}active{% endif %}">
+                    Today
+                </a>
+                <a href="{{ url_for('scheduling.schedule_index', week=week_offset+1) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Schedule Grid -->
+        <div class="col-lg-9 col-xl-10">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0 schedule-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 120px; min-width: 120px;">Machine</th>
+                                    {% for day in week_days %}
+                                    <th class="text-center {% if day.is_today %}bg-primary text-white{% endif %}" style="min-width: 130px;">
+                                        <div class="fw-bold">{{ day.short_name }}</div>
+                                        <small>{{ day.day_num }}</small>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for machine_id, machine_data in schedule_grid.items() %}
+                                <tr>
+                                    <td class="align-middle">
+                                        <a href="{{ url_for('scheduling.machine_schedule', machine_id=machine_id) }}" class="text-decoration-none">
+                                            <strong>{{ machine_data.machine.name }}</strong>
+                                            <br><small class="text-muted">{{ machine_data.machine.tonnage }}T</small>
+                                        </a>
+                                        <span class="badge bg-{{ 'success' if machine_data.machine.status == 'running' else 'secondary' if machine_data.machine.status == 'idle' else 'warning' }} ms-1">
+                                            {{ machine_data.machine.status }}
+                                        </span>
+                                    </td>
+                                    {% for day in week_days %}
+                                    {% set day_jobs = machine_data.days[day.date.isoformat()] %}
+                                    <td class="schedule-cell p-1 {% if day.is_today %}bg-light{% endif %}"
+                                        data-machine-id="{{ machine_id }}"
+                                        data-date="{{ day.date.strftime('%Y-%m-%d') }}">
+                                        {% for job in day_jobs %}
+                                        <div class="job-card job-{{ job.status }} border-{{ job.urgency_class }}"
+                                             draggable="true"
+                                             data-job-id="{{ job.id }}">
+                                            <div class="job-header">
+                                                <span class="job-sku">{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</span>
+                                                {% if job.is_urgent %}
+                                                <i class="bi bi-exclamation-triangle-fill text-danger" title="Urgent!"></i>
+                                                {% elif job.is_warning %}
+                                                <i class="bi bi-exclamation-circle text-warning" title="Due soon"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="job-details">
+                                                <small class="text-truncate d-block">
+                                                    {{ job.production_order.item.name[:20] if job.production_order and job.production_order.item else '' }}...
+                                                </small>
+                                                <small class="text-muted">
+                                                    {{ job.production_order.quantity_required|int if job.production_order else 0 }} pcs
+                                                </small>
+                                            </div>
+                                            {% if job.production_order and job.production_order.due_date %}
+                                            <div class="job-due">
+                                                <small class="text-{{ job.urgency_class }}">
+                                                    <i class="bi bi-clock"></i> {{ job.production_order.due_date.strftime('%d/%m') }}
+                                                </small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                        {% if not day_jobs %}
+                                        <div class="empty-slot text-muted text-center py-3">
+                                            <i class="bi bi-plus-circle"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar - Unscheduled Orders -->
+        <div class="col-lg-3 col-xl-2 mt-3 mt-lg-0">
+            <div class="card">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <i class="bi bi-list-task me-2"></i>Jobs to Schedule ({{ unscheduled_orders|length }})
+                </div>
+                <div class="card-body p-2" id="unscheduledContainer" style="max-height: 500px; overflow-y: auto;">
+                    {% if unscheduled_orders %}
+                    {% for order in unscheduled_orders %}
+                    <div class="unscheduled-job mb-2 p-2 border rounded bg-white"
+                         draggable="true"
+                         data-order-id="{{ order.id }}"
+                         data-sku="{{ order.item.sku if order.item else 'N/A' }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <strong class="small">{{ order.item.sku if order.item else 'N/A' }}</strong>
+                            {% if order.priority <= 3 %}
+                            <span class="badge bg-danger">P{{ order.priority }}</span>
+                            {% elif order.priority <= 5 %}
+                            <span class="badge bg-warning text-dark">P{{ order.priority }}</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted d-block text-truncate">{{ order.item.name if order.item else '' }}</small>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small>{{ order.quantity_required|int }} pcs</small>
+                            {% if order.due_date %}
+                            <small class="text-{{ 'danger' if (order.due_date - today).days <= 2 else 'warning' if (order.due_date - today).days <= 5 else 'muted' }}">
+                                <i class="bi bi-calendar"></i> {{ order.due_date.strftime('%d/%m') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% if order.customer %}
+                        <small class="text-info d-block mt-1">
+                            <i class="bi bi-building"></i> {{ order.customer.name[:15] if order.customer else '' }}
+                        </small>
+                        {% elif order.sales_order and order.sales_order.customer %}
+                        <small class="text-info d-block mt-1">
+                            <i class="bi bi-building"></i> {{ order.sales_order.customer.name[:15] }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle fs-3 d-block mb-2 text-success"></i>
+                        <p class="small mb-0">All jobs scheduled!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-graph-up me-2"></i>This Week
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Scheduled</span>
+                        <strong>{{ scheduled_count }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Unscheduled</span>
+                        <strong class="{% if unscheduled_orders|length > 0 %}text-warning{% endif %}">{{ unscheduled_orders|length }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Machines</span>
+                        <strong>{{ machines|length }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-body p-2">
+                    <a href="{{ url_for('production.order_create') }}" class="btn btn-primary btn-sm w-100 mb-2">
+                        <i class="bi bi-plus-circle me-1"></i>New Production Order
+                    </a>
+                    <a href="{{ url_for('scheduling.technician_view') }}" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-cpu me-1"></i>Shop Floor View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="scheduleToast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-calendar-check me-2 text-success"></i>
+            <strong class="me-auto">Schedule Updated</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastMessage">Job scheduled successfully!</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.schedule-table {
+    table-layout: fixed;
+}
+
+.schedule-cell {
+    vertical-align: top;
+    min-height: 100px;
+    position: relative;
+    transition: background-color 0.2s;
+}
+
+.schedule-cell.drag-over {
+    background-color: rgba(13, 110, 253, 0.15) !important;
+    outline: 2px dashed #0d6efd;
+}
+
+.job-card {
+    background: white;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-left: 3px solid #0d6efd;
+    cursor: grab;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.job-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.job-card:active {
+    cursor: grabbing;
+}
+
+.job-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.job-card.job-in_progress {
+    border-left-color: #198754;
+    background: #d1e7dd;
+}
+
+.job-card.job-completed {
+    border-left-color: #6c757d;
+    background: #e9ecef;
+    opacity: 0.7;
+}
+
+.job-card.border-danger {
+    border-left-color: #dc3545;
+}
+
+.job-card.border-warning {
+    border-left-color: #ffc107;
+}
+
+.job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.job-sku {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.job-details small {
+    font-size: 0.75rem;
+}
+
+.job-due {
+    margin-top: 4px;
+    font-size: 0.75rem;
+}
+
+.empty-slot {
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    opacity: 0.5;
+    transition: all 0.2s;
+}
+
+.schedule-cell.drag-over .empty-slot {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.1);
+    opacity: 1;
+}
+
+.unscheduled-job {
+    cursor: grab;
+    transition: all 0.2s;
+    border: 1px solid #dee2e6 !important;
+}
+
+.unscheduled-job:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-color: #0d6efd !important;
+}
+
+.unscheduled-job:active {
+    cursor: grabbing;
+}
+
+.unscheduled-job.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .schedule-table th,
+    .schedule-table td {
+        min-width: 100px !important;
+        padding: 0.25rem !important;
+    }
+
+    .job-card {
+        padding: 4px 6px;
+        font-size: 0.8rem;
+    }
+
+    .job-sku {
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+let draggedElement = null;
+let draggedType = null; // 'order' or 'job'
+
+// Initialize drag and drop
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup unscheduled order dragging
+    document.querySelectorAll('.unscheduled-job').forEach(el => {
+        el.addEventListener('dragstart', handleDragStart);
+        el.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Setup scheduled job dragging
+    document.querySelectorAll('.job-card').forEach(el => {
+        el.addEventListener('dragstart', handleJobDragStart);
+        el.addEventListener('dragend', handleDragEnd);
+        el.addEventListener('click', function(e) {
+            if (!e.target.closest('.dragging')) {
+                const jobId = this.dataset.jobId;
+                window.location.href = '/scheduling/job/' + jobId;
+            }
+        });
+    });
+
+    // Setup drop zones
+    document.querySelectorAll('.schedule-cell').forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop);
+    });
+});
+
+function handleDragStart(e) {
+    draggedElement = this;
+    draggedType = 'order';
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.orderId);
+}
+
+function handleJobDragStart(e) {
+    draggedElement = this;
+    draggedType = 'job';
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.jobId);
+    e.stopPropagation();
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.schedule-cell').forEach(cell => {
+        cell.classList.remove('drag-over');
+    });
+    draggedElement = null;
+    draggedType = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    // Only remove if we're actually leaving the cell (not entering a child)
+    if (!this.contains(e.relatedTarget)) {
+        this.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+
+    const machineId = this.dataset.machineId;
+    const date = this.dataset.date;
+
+    if (draggedType === 'order' && draggedElement) {
+        const orderId = draggedElement.dataset.orderId;
+        const sku = draggedElement.dataset.sku;
+        scheduleJob(orderId, machineId, date, sku);
+    } else if (draggedType === 'job' && draggedElement) {
+        const jobId = draggedElement.dataset.jobId;
+        moveJob(jobId, machineId, date);
+    }
+}
+
+function scheduleJob(orderId, machineId, date, sku) {
+    console.log('Scheduling job:', orderId, machineId, date);
+
+    fetch('/scheduling/api/schedule-job', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            production_order_id: parseInt(orderId),
+            machine_id: parseInt(machineId),
+            scheduled_date: date
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Job ' + (sku || '') + ' scheduled successfully!');
+            // Remove from unscheduled list
+            if (draggedElement) {
+                draggedElement.remove();
+            }
+            // Reload to show updated schedule
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast('Error: ' + (data.error || 'Failed to schedule job'), true);
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        showToast('Error scheduling job', true);
+    });
+}
+
+function moveJob(jobId, machineId, date) {
+    console.log('Moving job:', jobId, machineId, date);
+
+    fetch('/scheduling/api/move-job', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            job_id: parseInt(jobId),
+            machine_id: parseInt(machineId),
+            scheduled_date: date
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Job moved successfully!');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast('Error: ' + (data.error || 'Failed to move job'), true);
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        showToast('Error moving job', true);
+    });
+}
+
+function showToast(message, isError = false) {
+    const toast = document.getElementById('scheduleToast');
+    const toastBody = document.getElementById('toastMessage');
+    toastBody.textContent = message;
+
+    if (isError) {
+        toast.querySelector('.toast-header i').className = 'bi bi-exclamation-circle me-2 text-danger';
+    } else {
+        toast.querySelector('.toast-header i').className = 'bi bi-calendar-check me-2 text-success';
+    }
+
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+</script>
+{% endblock %}

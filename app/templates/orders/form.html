@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}New Order{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1>New Sales Order</h1>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-3">
+                    <div class="card-header">Order Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer *</label>
+                                <select class="form-select" name="customer_id" id="customerSelect" required>
+                                    <option value="">Select customer...</option>
+                                    {% for cust in customers %}
+                                    <option value="{{ cust.id }}"
+                                        data-address1="{{ cust.address_line1 or '' }}"
+                                        data-address2="{{ cust.address_line2 or '' }}"
+                                        data-city="{{ cust.city or '' }}"
+                                        data-county="{{ cust.county or '' }}"
+                                        data-postcode="{{ cust.postcode or '' }}"
+                                        data-country="{{ cust.country or 'United Kingdom' }}">
+                                        {{ cust.name }}{% if cust.is_jit %} (JIT){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Customer PO</label>
+                                <input type="text" class="form-control" name="customer_po" placeholder="Customer's reference">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Required Date</label>
+                                <input type="date" class="form-control" name="required_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Delivery Method</label>
+                                <select class="form-select" name="delivery_method">
+                                    <option value="">Select...</option>
+                                    <option value="own_van">Own Van</option>
+                                    <option value="haulage">Haulage Company</option>
+                                    <option value="collection">Customer Collection</option>
+                                    <option value="postal">Postal Service</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Delivery Address</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <input type="text" class="form-control" name="delivery_address_line1" id="addr1" placeholder="Address Line 1">
+                            </div>
+                            <div class="col-12">
+                                <input type="text" class="form-control" name="delivery_address_line2" id="addr2" placeholder="Address Line 2">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="delivery_city" id="city" placeholder="City">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="delivery_county" id="county" placeholder="County">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="delivery_postcode" id="postcode" placeholder="Postcode">
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" name="delivery_country" id="country" placeholder="Country" value="United Kingdom">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Notes</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Delivery Instructions</label>
+                            <textarea class="form-control" name="delivery_instructions" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Order Notes</label>
+                            <textarea class="form-control" name="notes" rows="2"></textarea>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">Internal Notes</label>
+                            <textarea class="form-control" name="internal_notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Create the order first, then add line items on the next screen.</p>
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-check-lg me-2"></i> Create Order
+                        </button>
+                        <a href="{{ url_for('orders.order_list') }}" class="btn btn-outline-secondary w-100 mt-2">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('customerSelect').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    document.getElementById('addr1').value = option.dataset.address1 || '';
+    document.getElementById('addr2').value = option.dataset.address2 || '';
+    document.getElementById('city').value = option.dataset.city || '';
+    document.getElementById('county').value = option.dataset.county || '';
+    document.getElementById('postcode').value = option.dataset.postcode || '';
+    document.getElementById('country').value = option.dataset.country || 'United Kingdom';
+});
+</script>
+{% endblock %}

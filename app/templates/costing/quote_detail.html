@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quote.quote_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('costing.quote_list') }}">Quotes</a></li>
+                    <li class="breadcrumb-item active">{{ quote.quote_number }}</li>
+                </ol>
+            </nav>
+            <h1>{{ quote.customer.name }}</h1>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge fs-6 bg-{{ 'secondary' if quote.status == 'draft' else 'info' if quote.status == 'sent' else 'success' if quote.status == 'accepted' else 'danger' if quote.status == 'rejected' else 'warning' }}">
+                {{ quote.status|title }}
+            </span>
+            <a href="{{ url_for('costing.quote_edit', quote_id=quote.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Quote Summary -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Quote Summary</span>
+                    <span class="text-muted">{{ quote.quote_number }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Item:</strong>
+                            {% if quote.item %}
+                            <a href="{{ url_for('inventory.item_detail', item_id=quote.item.id) }}">{{ quote.item.sku }}</a> - {{ quote.item.name }}
+                            {% else %}
+                            {{ quote.description or 'Custom item' }}
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Quantity:</strong> {{ "{:,.0f}".format(quote.quantity) }} units
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Part Weight:</strong> {{ quote.part_weight_g or '-' }}g
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Cycle Time:</strong> {{ quote.cycle_time_seconds or '-' }}s
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Cavities:</strong> {{ quote.cavities or 1 }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Material:</strong> {{ quote.material_type or '-' }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Setup Time:</strong> {{ quote.setup_hours or 0 }} hrs
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Valid Until:</strong> {{ quote.valid_until.strftime('%d/%m/%Y') if quote.valid_until else 'Not set' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Breakdown -->
+            <div class="card mb-3">
+                <div class="card-header bg-success bg-opacity-10">
+                    <i class="bi bi-calculator me-2"></i>Full Cost Breakdown
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cost Element</th>
+                                <th class="text-end">Per Part</th>
+                                <th class="text-end">Total ({{ "{:,.0f}".format(quote.quantity) }} units)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-box-seam text-primary me-2"></i>Material
+                                    <small class="text-muted d-block">{{ quote.material_type or 'Not specified' }} @ &pound;{{ "{:,.2f}".format(quote.material_cost_per_kg) }}/kg</small>
+                                </td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.material_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.material_cost_per_part * quote.quantity) }}</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-clock text-info me-2"></i>Machine & Labour
+                                    <small class="text-muted d-block">{{ quote.cycle_time_seconds or 0 }}s cycle @ &pound;{{ "{:,.0f}".format(quote.machine_rate_per_hour + quote.labour_rate_per_hour) }}/hr</small>
+                                </td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.cycle_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.cycle_cost_per_part * quote.quantity) }}</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <i class="bi bi-gear text-warning me-2"></i>Setup (amortized)
+                                    <small class="text-muted d-block">{{ quote.setup_hours or 0 }} hrs @ &pound;{{ "{:,.0f}".format(quote.machine_rate_per_hour + quote.labour_rate_per_hour) }}/hr</small>
+                                </td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.setup_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.setup_cost) }}</td>
+                            </tr>
+                            {% if quote.secondary_ops_cost and quote.secondary_ops_cost > 0 %}
+                            <tr>
+                                <td><i class="bi bi-tools text-secondary me-2"></i>Secondary Operations</td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.secondary_ops_cost) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.secondary_ops_cost * quote.quantity) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if quote.packaging_cost_per_part and quote.packaging_cost_per_part > 0 %}
+                            <tr>
+                                <td><i class="bi bi-archive text-secondary me-2"></i>Packaging</td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.packaging_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.packaging_cost_per_part * quote.quantity) }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td><i class="bi bi-building text-muted me-2"></i>Overhead ({{ quote.overhead_percent|int }}%)</td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.overhead_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.overhead_cost_per_part * quote.quantity) }}</td>
+                            </tr>
+                            <tr class="table-secondary fw-bold">
+                                <td>Total Cost</td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.total_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(quote.total_cost_per_part * quote.quantity) }}</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>Margin ({{ quote.target_margin_percent|int }}%)</td>
+                                <td class="text-end">&pound;{{ "{:,.4f}".format(quote.quoted_price_per_part - quote.total_cost_per_part) }}</td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format((quote.quoted_price_per_part - quote.total_cost_per_part) * quote.quantity) }}</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary fs-5">
+                                <th>Selling Price</th>
+                                <th class="text-end">&pound;{{ "{:,.4f}".format(quote.quoted_price_per_part) }}</th>
+                                <th class="text-end">&pound;{{ "{:,.2f}".format(quote.quoted_total) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if quote.notes %}
+            <div class="card mb-3">
+                <div class="card-header">Customer Notes</div>
+                <div class="card-body">{{ quote.notes }}</div>
+            </div>
+            {% endif %}
+
+            {% if quote.internal_notes %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning bg-opacity-25">Internal Notes</div>
+                <div class="card-body">{{ quote.internal_notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- PDF Export -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-file-pdf"></i> Export Quote
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('data_management.quote_pdf', quote_id=quote.id) }}" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-file-earmark-pdf me-2"></i>Customer PDF
+                        </a>
+                        <a href="{{ url_for('data_management.quote_pdf_internal', quote_id=quote.id) }}" target="_blank" class="btn btn-outline-warning">
+                            <i class="bi bi-file-earmark-lock me-2"></i>Internal PDF (with costs)
+                        </a>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        Customer PDF hides cost breakdown. Internal PDF shows all calculations.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card mb-3">
+                <div class="card-header">Actions</div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if quote.status == 'draft' %}
+                        <form method="POST" action="{{ url_for('costing.quote_status', quote_id=quote.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="sent">
+                            <button type="submit" class="btn btn-info w-100">
+                                <i class="bi bi-send me-2"></i>Mark as Sent
+                            </button>
+                        </form>
+                        {% elif quote.status == 'sent' %}
+                        <form method="POST" action="{{ url_for('costing.quote_status', quote_id=quote.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="accepted">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle me-2"></i>Mark as Won
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('costing.quote_status', quote_id=quote.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="rejected">
+                            <button type="submit" class="btn btn-outline-danger w-100">
+                                <i class="bi bi-x-circle me-2"></i>Mark as Lost
+                            </button>
+                        </form>
+                        {% elif quote.status == 'accepted' and not quote.sales_order_id %}
+                        <form method="POST" action="{{ url_for('costing.quote_convert_to_order', quote_id=quote.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-arrow-right-circle me-2"></i>Convert to Order
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if quote.sales_order %}
+                        <a href="{{ url_for('orders.order_detail', order_id=quote.sales_order.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-box-seam me-2"></i>View Order {{ quote.sales_order.order_number }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote Info -->
+            <div class="card mb-3">
+                <div class="card-header">Quote Details</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Quote #</th>
+                            <td>{{ quote.quote_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Created</th>
+                            <td>{{ quote.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                        {% if quote.sent_at %}
+                        <tr>
+                            <th>Sent</th>
+                            <td>{{ quote.sent_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Valid Until</th>
+                            <td>{{ quote.valid_until.strftime('%d/%m/%Y') if quote.valid_until else 'Not set' }}</td>
+                        </tr>
+                        {% if quote.annual_volume %}
+                        <tr>
+                            <th>Annual Volume</th>
+                            <td>{{ "{:,.0f}".format(quote.annual_volume) }} units</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Customer -->
+            <div class="card mb-3">
+                <div class="card-header">Customer</div>
+                <div class="card-body">
+                    <h6><a href="{{ url_for('customers.customer_detail', customer_id=quote.customer.id) }}">{{ quote.customer.name }}</a></h6>
+                    <p class="mb-0 small text-muted">
+                        {{ quote.customer.contact_name or '' }}<br>
+                        {{ quote.customer.email or '' }}<br>
+                        {{ quote.customer.phone or '' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tooling -->
+            {% if quote.tooling_cost and quote.tooling_cost > 0 %}
+            <div class="card mb-3 border-info">
+                <div class="card-header bg-info bg-opacity-10">Tooling</div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Tooling Cost:</strong> &pound;{{ "{:,.2f}".format(quote.tooling_cost) }}</p>
+                    {% if quote.tooling_amortization_qty %}
+                    <p class="mb-0 small text-muted">Amortized over {{ "{:,.0f}".format(quote.tooling_amortization_qty) }} units = &pound;{{ "{:,.4f}".format(quote.tooling_cost / quote.tooling_amortization_qty) }}/part</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

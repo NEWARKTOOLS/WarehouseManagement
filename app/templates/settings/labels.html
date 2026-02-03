@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Label Settings{% endblock %}
+{% block mobile_title %}Labels{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Settings</a></li>
+                    <li class="breadcrumb-item active">Label Format</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-upc me-2"></i>Label Format Settings</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="card mb-3">
+                    <div class="card-header">Label Size (Dymo Compatible)</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Label Width (mm)</label>
+                                <select class="form-select" name="label_width" id="labelWidth">
+                                    <option value="89" {{ 'selected' if settings.label_width == 89 }}>89mm (Dymo 99012 Large Address)</option>
+                                    <option value="101" {{ 'selected' if settings.label_width == 101 }}>101mm (Dymo 99014 Shipping)</option>
+                                    <option value="57" {{ 'selected' if settings.label_width == 57 }}>57mm (Dymo 11354 Multi-Purpose)</option>
+                                    <option value="54" {{ 'selected' if settings.label_width == 54 }}>54mm (Dymo 99015 Diskette)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Label Height (mm)</label>
+                                <select class="form-select" name="label_height" id="labelHeight">
+                                    <option value="36" {{ 'selected' if settings.label_height == 36 }}>36mm (Standard)</option>
+                                    <option value="54" {{ 'selected' if settings.label_height == 54 }}>54mm (Large)</option>
+                                    <option value="32" {{ 'selected' if settings.label_height == 32 }}>32mm (Small)</option>
+                                    <option value="25" {{ 'selected' if settings.label_height == 25 }}>25mm (Mini)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">
+                            Common Dymo sizes: 99012 (89x36mm), 99014 (101x54mm), 11354 (57x32mm)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Label Content</div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Select what information appears on each label:</p>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="label_show_company" id="showCompany"
+                                           {{ 'checked' if settings.label_show_company }}>
+                                    <label class="form-check-label" for="showCompany">
+                                        <strong>Company Name</strong>
+                                        <br><small class="text-muted">Shows: {{ company_name or 'Your Company Name' }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="label_show_name" id="showName"
+                                           {{ 'checked' if settings.label_show_name }}>
+                                    <label class="form-check-label" for="showName">
+                                        <strong>Part Name</strong>
+                                        <br><small class="text-muted">Full product/part name</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="label_show_barcode" id="showBarcode"
+                                           {{ 'checked' if settings.label_show_barcode }}>
+                                    <label class="form-check-label" for="showBarcode">
+                                        <strong>Barcode</strong>
+                                        <br><small class="text-muted">Scannable Code128 barcode</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="label_show_sku" id="showSku"
+                                           {{ 'checked' if settings.label_show_sku }}>
+                                    <label class="form-check-label" for="showSku">
+                                        <strong>SKU/Part Number</strong>
+                                        <br><small class="text-muted">Human-readable code below barcode</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="label_show_quantity" id="showQuantity"
+                                           {{ 'checked' if settings.label_show_quantity }}>
+                                    <label class="form-check-label" for="showQuantity">
+                                        <strong>Quantity</strong>
+                                        <br><small class="text-muted">Box/pallet quantity (highlighted)</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Save Settings
+                    </button>
+                    <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Live Preview -->
+            <div class="card">
+                <div class="card-header">Label Preview</div>
+                <div class="card-body">
+                    <div id="livePreview" class="label-preview mx-auto">
+                        <div class="label-box" id="previewBox">
+                            <div class="preview-company" id="previewCompany">{{ company_name or 'Your Company' }}</div>
+                            <div class="preview-name" id="previewName">Sample Part Name</div>
+                            <div class="preview-barcode" id="previewBarcode">
+                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAUCAYAAAB7wJiVAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFBSURBVGiB7dkxDoJAFIThv9FYeQFvYOEBbDyBjY0n8AY2nsAbWHgDC29g4Q0svIGFNwAK3GxCYBdxs7uJM8kUJOzLTH4CIjMDGP8lKZ0A6lfqJKT6knqJu0y/n0nqBap9J1LQZJIa+lNSJyHVlzRJ3GX6/UxSL1DtO5GCJpPU0J+SOgmpvqRJ4i7T72eSeoFq34kUNJmkhv6U1ElI9SVNEneZfj+T1AtU+06koMkkNfSnpE5Cqi9pkriL0y8Y4D8xASi4LwAAAABJRU5ErkJggg==" alt="barcode" style="width: 100%; height: 25px;">
+                            </div>
+                            <div class="preview-sku" id="previewSku">SKU-12345</div>
+                            <div class="preview-qty" id="previewQty">QTY: 100</div>
+                        </div>
+                    </div>
+                    <p class="text-muted small text-center mt-3">
+                        This is how your labels will appear when printed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.label-preview {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.label-box {
+    background: white;
+    border: 2px solid #333;
+    padding: 10px;
+    text-align: center;
+    max-width: 200px;
+    margin: 0 auto;
+}
+
+.preview-company {
+    font-weight: bold;
+    font-size: 11px;
+    margin-bottom: 3px;
+}
+
+.preview-name {
+    font-size: 10px;
+    margin-bottom: 5px;
+}
+
+.preview-barcode {
+    margin: 5px 0;
+}
+
+.preview-sku {
+    font-size: 9px;
+    color: #666;
+}
+
+.preview-qty {
+    font-weight: bold;
+    font-size: 14px;
+    background: #000;
+    color: #fff;
+    padding: 3px 8px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.hidden {
+    display: none !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Live preview updates
+const toggles = {
+    'showCompany': 'previewCompany',
+    'showName': 'previewName',
+    'showBarcode': 'previewBarcode',
+    'showSku': 'previewSku',
+    'showQuantity': 'previewQty'
+};
+
+Object.keys(toggles).forEach(toggleId => {
+    const toggle = document.getElementById(toggleId);
+    const preview = document.getElementById(toggles[toggleId]);
+
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            preview.classList.remove('hidden');
+        } else {
+            preview.classList.add('hidden');
+        }
+    });
+
+    // Initial state
+    if (!toggle.checked) {
+        preview.classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}

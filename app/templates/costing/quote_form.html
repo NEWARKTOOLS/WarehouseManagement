@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}{% if quote %}Edit Quote{% else %}New Quote{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('costing.quote_list') }}">Quotes</a></li>
+                    <li class="breadcrumb-item active">{% if quote %}{{ quote.quote_number }}{% else %}New{% endif %}</li>
+                </ol>
+            </nav>
+            <h1>{% if quote %}Edit Quote{% else %}New Quote{% endif %}</h1>
+        </div>
+    </div>
+
+    <form method="POST" id="quoteForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Basic Info -->
+                <div class="card mb-3">
+                    <div class="card-header">Quote Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" class="form-select" required>
+                                    <option value="">Select customer...</option>
+                                    {% for c in customers %}
+                                    <option value="{{ c.id }}" {% if quote and quote.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Existing Item (optional)</label>
+                                <select name="item_id" class="form-select" id="itemSelect">
+                                    <option value="">New/Custom item</option>
+                                    {% for item in items %}
+                                    <option value="{{ item.id }}"
+                                            data-weight="{{ item.part_weight_grams or '' }}"
+                                            data-runner="{{ item.runner_weight_grams or '' }}"
+                                            data-cycle="{{ item.cycle_time_seconds or item.ideal_cycle_time or '' }}"
+                                            data-cavities="{{ item.cavities or 1 }}"
+                                            data-material="{{ item.material_type or '' }}"
+                                            data-materialcost="{{ item.material_cost_per_kg or '' }}"
+                                            data-machinerate="{{ item.target_machine_rate or '' }}"
+                                            data-margin="{{ item.target_margin_percent or 30 }}"
+                                            data-setup="{{ item.setup_time_hours or 2 }}"
+                                            {% if quote and quote.item_id == item.id %}selected{% endif %}>
+                                        {{ item.sku }} - {{ item.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Selecting an item will auto-fill production data</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <textarea name="description" class="form-control" rows="2">{{ quote.description if quote else '' }}</textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity" class="form-control calc-trigger" value="{{ quote.quantity|int if quote else 5000 }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Annual Volume</label>
+                                <input type="number" name="annual_volume" class="form-control" value="{{ quote.annual_volume|int if quote and quote.annual_volume else '' }}" placeholder="Est. yearly usage">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Valid Until</label>
+                                <input type="date" name="valid_until" class="form-control" value="{{ quote.valid_until.strftime('%Y-%m-%d') if quote and quote.valid_until else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Part Details -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info bg-opacity-10">Part & Production Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Part Weight (g)</label>
+                                <input type="number" step="0.01" name="part_weight_g" id="partWeight" class="form-control calc-trigger" value="{{ quote.part_weight_g if quote else '' }}" placeholder="e.g. 25">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Runner Weight (g)</label>
+                                <input type="number" step="0.01" name="runner_weight_g" class="form-control calc-trigger" value="{{ quote.runner_weight_g if quote else '' }}" placeholder="e.g. 5">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Cycle Time (sec)</label>
+                                <input type="number" step="0.1" name="cycle_time_seconds" id="cycleTime" class="form-control calc-trigger" value="{{ quote.cycle_time_seconds if quote else '' }}" placeholder="e.g. 30">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Cavities</label>
+                                <input type="number" name="cavities" id="cavities" class="form-control calc-trigger" value="{{ quote.cavities if quote else 1 }}" min="1">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Type</label>
+                                <select name="material_type" class="form-select">
+                                    <option value="">Select...</option>
+                                    <option value="PP" {% if quote and quote.material_type == 'PP' %}selected{% endif %}>PP (Polypropylene)</option>
+                                    <option value="ABS" {% if quote and quote.material_type == 'ABS' %}selected{% endif %}>ABS</option>
+                                    <option value="PA6" {% if quote and quote.material_type == 'PA6' %}selected{% endif %}>PA6 (Nylon 6)</option>
+                                    <option value="PA66" {% if quote and quote.material_type == 'PA66' %}selected{% endif %}>PA66 (Nylon 66)</option>
+                                    <option value="POM" {% if quote and quote.material_type == 'POM' %}selected{% endif %}>POM (Acetal)</option>
+                                    <option value="PC" {% if quote and quote.material_type == 'PC' %}selected{% endif %}>PC (Polycarbonate)</option>
+                                    <option value="HDPE" {% if quote and quote.material_type == 'HDPE' %}selected{% endif %}>HDPE</option>
+                                    <option value="PET" {% if quote and quote.material_type == 'PET' %}selected{% endif %}>PET</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Cost (&pound;/kg)</label>
+                                <input type="number" step="0.01" name="material_cost_per_kg" class="form-control calc-trigger" value="{{ quote.material_cost_per_kg if quote else '' }}" placeholder="e.g. 2.50">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Setup Hours</label>
+                                <input type="number" step="0.5" name="setup_hours" class="form-control calc-trigger" value="{{ quote.setup_hours if quote else 2 }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rates -->
+                <div class="card mb-3">
+                    <div class="card-header bg-warning bg-opacity-10">Rates & Costs</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Machine Rate (&pound;/hr)</label>
+                                <input type="number" step="0.01" name="machine_rate_per_hour" class="form-control calc-trigger" value="{{ quote.machine_rate_per_hour if quote else default_machine_rate }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Labour Rate (&pound;/hr)</label>
+                                <input type="number" step="0.01" name="labour_rate_per_hour" class="form-control calc-trigger" value="{{ quote.labour_rate_per_hour if quote else default_labour_rate }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Secondary Ops (&pound;/part)</label>
+                                <input type="number" step="0.001" name="secondary_ops_cost" class="form-control calc-trigger" value="{{ quote.secondary_ops_cost if quote else 0 }}" placeholder="Degating, assembly...">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Overhead %</label>
+                                <input type="number" step="1" name="overhead_percent" class="form-control calc-trigger" value="{{ quote.overhead_percent if quote else 20 }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Packaging (&pound;/part)</label>
+                                <input type="number" step="0.001" name="packaging_cost_per_part" class="form-control calc-trigger" value="{{ quote.packaging_cost_per_part if quote else 0 }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Target Margin %</label>
+                                <input type="number" step="1" name="target_margin_percent" class="form-control calc-trigger" value="{{ quote.target_margin_percent if quote else 30 }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tooling -->
+                <div class="card mb-3">
+                    <div class="card-header">Tooling (Optional)</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tooling Cost (&pound;)</label>
+                                <input type="number" step="0.01" name="tooling_cost" class="form-control" value="{{ quote.tooling_cost if quote else 0 }}" placeholder="New mould cost">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Amortization Qty</label>
+                                <input type="number" name="tooling_amortization_qty" class="form-control" value="{{ quote.tooling_amortization_qty|int if quote and quote.tooling_amortization_qty else '' }}" placeholder="Units to spread cost over">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="card mb-3">
+                    <div class="card-header">Notes</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Customer Notes (shown on quote)</label>
+                            <textarea name="notes" class="form-control" rows="2">{{ quote.notes if quote else '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="form-label">Internal Notes (not shown to customer)</label>
+                            <textarea name="internal_notes" class="form-control" rows="2">{{ quote.internal_notes if quote else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Breakdown Sidebar -->
+            <div class="col-lg-4">
+                <div class="card sticky-top" style="top: 1rem;">
+                    <div class="card-header bg-success text-white">
+                        <i class="bi bi-calculator me-2"></i>Cost Breakdown
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <td>Material Cost/part</td>
+                                <td class="text-end" id="calcMaterial">&pound;{{ "{:,.4f}".format(quote.material_cost_per_part) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr>
+                                <td>Cycle Cost/part</td>
+                                <td class="text-end" id="calcCycle">&pound;{{ "{:,.4f}".format(quote.cycle_cost_per_part) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr>
+                                <td>Setup Cost/part</td>
+                                <td class="text-end" id="calcSetup">&pound;{{ "{:,.4f}".format(quote.setup_cost_per_part) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr>
+                                <td>Secondary Ops</td>
+                                <td class="text-end" id="calcSecondary">&pound;{{ "{:,.4f}".format(quote.secondary_ops_cost) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr>
+                                <td>Packaging</td>
+                                <td class="text-end" id="calcPackaging">&pound;{{ "{:,.4f}".format(quote.packaging_cost_per_part) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr>
+                                <td>Overhead</td>
+                                <td class="text-end" id="calcOverhead">&pound;{{ "{:,.4f}".format(quote.overhead_cost_per_part) if quote else '0.0000' }}</td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <th>Total Cost/part</th>
+                                <th class="text-end" id="calcTotal">&pound;{{ "{:,.4f}".format(quote.total_cost_per_part) if quote else '0.0000' }}</th>
+                            </tr>
+                            <tr>
+                                <td>Margin</td>
+                                <td class="text-end" id="calcMargin">{{ quote.target_margin_percent|int if quote else 30 }}%</td>
+                            </tr>
+                            <tr class="table-success fs-5">
+                                <th>Sell Price/part</th>
+                                <th class="text-end" id="calcPrice">&pound;{{ "{:,.4f}".format(quote.quoted_price_per_part) if quote else '0.0000' }}</th>
+                            </tr>
+                            <tr class="table-primary fs-4">
+                                <th>Quote Total</th>
+                                <th class="text-end" id="calcQuoteTotal">&pound;{{ "{:,.2f}".format(quote.quoted_total) if quote else '0.00' }}</th>
+                            </tr>
+                        </table>
+
+                        <hr>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg me-2"></i>{% if quote %}Update Quote{% else %}Create Quote{% endif %}
+                            </button>
+                            <a href="{{ url_for('costing.quote_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-fill from selected item
+document.getElementById('itemSelect').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    if (option.value) {
+        // Auto-fill all available data from the item
+        if (option.dataset.weight) document.querySelector('[name="part_weight_g"]').value = option.dataset.weight;
+        if (option.dataset.runner) document.querySelector('[name="runner_weight_g"]').value = option.dataset.runner;
+        if (option.dataset.cycle) document.querySelector('[name="cycle_time_seconds"]').value = option.dataset.cycle;
+        if (option.dataset.cavities) document.querySelector('[name="cavities"]').value = option.dataset.cavities;
+        if (option.dataset.material) document.querySelector('[name="material_type"]').value = option.dataset.material;
+        if (option.dataset.materialcost) document.querySelector('[name="material_cost_per_kg"]').value = option.dataset.materialcost;
+        if (option.dataset.machinerate) document.querySelector('[name="machine_rate_per_hour"]').value = option.dataset.machinerate;
+        if (option.dataset.margin) document.querySelector('[name="target_margin_percent"]').value = option.dataset.margin;
+        if (option.dataset.setup) document.querySelector('[name="setup_hours"]').value = option.dataset.setup;
+        calculateCosts();
+    }
+});
+
+// Real-time cost calculation
+function calculateCosts() {
+    const partWeight = parseFloat(document.querySelector('[name="part_weight_g"]').value) || 0;
+    const runnerWeight = parseFloat(document.querySelector('[name="runner_weight_g"]').value) || 0;
+    const cycleTime = parseFloat(document.querySelector('[name="cycle_time_seconds"]').value) || 0;
+    const cavities = parseInt(document.querySelector('[name="cavities"]').value) || 1;
+    const materialCostKg = parseFloat(document.querySelector('[name="material_cost_per_kg"]').value) || 0;
+    const machineRate = parseFloat(document.querySelector('[name="machine_rate_per_hour"]').value) || 0;
+    const labourRate = parseFloat(document.querySelector('[name="labour_rate_per_hour"]').value) || 0;
+    const setupHours = parseFloat(document.querySelector('[name="setup_hours"]').value) || 0;
+    const secondaryOps = parseFloat(document.querySelector('[name="secondary_ops_cost"]').value) || 0;
+    const overheadPercent = parseFloat(document.querySelector('[name="overhead_percent"]').value) || 0;
+    const packagingCost = parseFloat(document.querySelector('[name="packaging_cost_per_part"]').value) || 0;
+    const marginPercent = parseFloat(document.querySelector('[name="target_margin_percent"]').value) || 0;
+    const quantity = parseFloat(document.querySelector('[name="quantity"]').value) || 1;
+
+    // Material cost per part
+    const totalShotWeightKg = (partWeight + runnerWeight) / 1000;
+    const materialCostPart = (totalShotWeightKg / cavities) * materialCostKg;
+
+    // Cycle cost per part
+    const cycleTimeHours = cycleTime / 3600;
+    const machineCostCycle = cycleTimeHours * machineRate;
+    const labourCostCycle = cycleTimeHours * labourRate;
+    const cycleCostPart = (machineCostCycle + labourCostCycle) / cavities;
+
+    // Setup cost per part
+    const setupCost = setupHours * (machineRate + labourRate);
+    const setupCostPart = quantity > 0 ? setupCost / quantity : 0;
+
+    // Direct cost
+    const directCost = materialCostPart + cycleCostPart + setupCostPart + secondaryOps + packagingCost;
+
+    // Overhead
+    const overheadCostPart = directCost * (overheadPercent / 100);
+
+    // Total cost
+    const totalCostPart = directCost + overheadCostPart;
+
+    // Selling price
+    let sellPricePart = 0;
+    if (marginPercent < 100) {
+        sellPricePart = totalCostPart / (1 - marginPercent / 100);
+    } else {
+        sellPricePart = totalCostPart * 2;
+    }
+
+    // Quote total
+    const quoteTotal = sellPricePart * quantity;
+
+    // Update display
+    document.getElementById('calcMaterial').textContent = '£' + materialCostPart.toFixed(4);
+    document.getElementById('calcCycle').textContent = '£' + cycleCostPart.toFixed(4);
+    document.getElementById('calcSetup').textContent = '£' + setupCostPart.toFixed(4);
+    document.getElementById('calcSecondary').textContent = '£' + secondaryOps.toFixed(4);
+    document.getElementById('calcPackaging').textContent = '£' + packagingCost.toFixed(4);
+    document.getElementById('calcOverhead').textContent = '£' + overheadCostPart.toFixed(4);
+    document.getElementById('calcTotal').textContent = '£' + totalCostPart.toFixed(4);
+    document.getElementById('calcMargin').textContent = marginPercent.toFixed(0) + '%';
+    document.getElementById('calcPrice').textContent = '£' + sellPricePart.toFixed(4);
+    document.getElementById('calcQuoteTotal').textContent = '£' + quoteTotal.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// Attach listeners
+document.querySelectorAll('.calc-trigger').forEach(input => {
+    input.addEventListener('input', calculateCosts);
+    input.addEventListener('change', calculateCosts);
+});
+
+// Initial calculation
+calculateCosts();
+</script>
+{% endblock %}

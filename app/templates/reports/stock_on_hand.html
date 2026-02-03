@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Stock On Hand Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Stock On Hand</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-box-seam me-2"></i>Stock On Hand</h1>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-2">
+                <div class="col-6 col-md-3">
+                    <select class="form-select" name="category" onchange="this.form.submit()">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select class="form-select" name="type" onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        <option value="raw_material" {% if item_type == 'raw_material' %}selected{% endif %}>Raw Material</option>
+                        <option value="finished_good" {% if item_type == 'finished_good' %}selected{% endif %}>Finished Good</option>
+                        <option value="component" {% if item_type == 'component' %}selected{% endif %}>Component</option>
+                        <option value="packaging" {% if item_type == 'packaging' %}selected{% endif %}>Packaging</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select class="form-select" name="location" onchange="this.form.submit()">
+                        <option value="">All Locations</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}" {% if location_id == loc.id %}selected{% endif %}>{{ loc.code }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="text-end">Total Qty</th>
+                            <th>Locations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in stock_data %}
+                        {% if data.total_quantity > 0 %}
+                        <tr>
+                            <td><strong>{{ data.item.sku }}</strong></td>
+                            <td>{{ data.item.description or '-' }}</td>
+                            <td>{{ data.item.category.name if data.item.category else '-' }}</td>
+                            <td class="text-end">
+                                <strong>{{ "{:,.0f}".format(data.total_quantity) }}</strong>
+                                {{ data.item.unit_of_measure }}
+                            </td>
+                            <td>
+                                {% for loc in data.locations %}
+                                <span class="badge bg-secondary">{{ loc.location.code }}: {{ loc.quantity }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No stock found matching filters</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

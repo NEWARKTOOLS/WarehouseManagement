@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Machine Utilization Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Machine Utilization</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-cpu me-2"></i>Machine Utilization</h1>
+        </div>
+    </div>
+
+    <!-- Machine Cards -->
+    <div class="row g-3">
+        {% for stats in machine_stats %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>{{ stats.machine.name }}</strong>
+                    <span class="status-badge status-{{ stats.status }}">{{ stats.status|replace('_', ' ')|title }}</span>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Code</th>
+                            <td>{{ stats.machine.code }}</td>
+                        </tr>
+                        <tr>
+                            <th>Tonnage</th>
+                            <td>{{ stats.machine.tonnage }}T</td>
+                        </tr>
+                        <tr>
+                            <th>Active Jobs</th>
+                            <td>
+                                {% if stats.active_jobs > 0 %}
+                                <span class="badge bg-success">{{ stats.active_jobs }}</span>
+                                {% else %}
+                                <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Completed Jobs</th>
+                            <td>{{ stats.completed_jobs }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <div class="progress" style="height: 20px;">
+                        {% if stats.status == 'running' %}
+                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 100%">Running</div>
+                        {% elif stats.status == 'idle' %}
+                        <div class="progress-bar bg-secondary" style="width: 100%">Idle</div>
+                        {% elif stats.status == 'maintenance' %}
+                        <div class="progress-bar bg-warning" style="width: 100%">Maintenance</div>
+                        {% else %}
+                        <div class="progress-bar bg-danger" style="width: 100%">Down</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="bi bi-cpu"></i>
+                <p>No machines configured</p>
+                <a href="{{ url_for('production.machine_list') }}" class="btn btn-primary">Add Machines</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary -->
+    {% if machine_stats %}
+    <div class="card mt-4">
+        <div class="card-header">Summary</div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-4">
+                    <h3 class="text-success">{{ machine_stats|selectattr('status', 'equalto', 'running')|list|length }}</h3>
+                    <small class="text-muted">Running</small>
+                </div>
+                <div class="col-4">
+                    <h3 class="text-secondary">{{ machine_stats|selectattr('status', 'equalto', 'idle')|list|length }}</h3>
+                    <small class="text-muted">Idle</small>
+                </div>
+                <div class="col-4">
+                    <h3 class="text-warning">{{ machine_stats|rejectattr('status', 'in', ['running', 'idle'])|list|length }}</h3>
+                    <small class="text-muted">Maintenance/Down</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

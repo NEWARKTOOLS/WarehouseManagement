@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#0d6efd"/>
+  <g fill="white">
+    <!-- Warehouse/Box icon -->
+    <path d="M128 160h256v224c0 17.7-14.3 32-32 32H160c-17.7 0-32-14.3-32-32V160z" fill-opacity="0.3"/>
+    <path d="M256 96l160 64v32H96v-32l160-64z"/>
+    <rect x="176" y="240" width="64" height="96" rx="8"/>
+    <rect x="272" y="240" width="64" height="96" rx="8"/>
+    <!-- Barcode lines -->
+    <rect x="184" y="360" width="8" height="32"/>
+    <rect x="200" y="360" width="4" height="32"/>
+    <rect x="212" y="360" width="8" height="32"/>
+    <rect x="228" y="360" width="4" height="32"/>
+    <rect x="240" y="360" width="12" height="32"/>
+    <rect x="260" y="360" width="4" height="32"/>
+    <rect x="272" y="360" width="8" height="32"/>
+    <rect x="288" y="360" width="4" height="32"/>
+    <rect x="300" y="360" width="8" height="32"/>
+    <rect x="316" y="360" width="4" height="32"/>
+  </g>
+</svg>

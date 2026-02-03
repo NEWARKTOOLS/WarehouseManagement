@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Business Intelligence{% endblock %}
+{% block mobile_title %}BI Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-graph-up-arrow me-2"></i>Business Intelligence</h1>
+            <p class="text-muted mb-0">Profitability & Performance Overview</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('costing.oee_dashboard') }}" class="btn btn-outline-warning">
+                <i class="bi bi-speedometer2 me-1"></i>OEE
+            </a>
+            <a href="{{ url_for('costing.quote_list') }}" class="btn btn-outline-primary">
+                <i class="bi bi-calculator me-1"></i>Quotes
+            </a>
+            <a href="{{ url_for('costing.job_costing_list') }}" class="btn btn-outline-success">
+                <i class="bi bi-currency-pound me-1"></i>Job Costing
+            </a>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fs-3 fw-bold">&pound;{{ "{:,.0f}".format(month_revenue) }}</div>
+                            <div class="small opacity-75">Revenue This Month</div>
+                        </div>
+                        <i class="bi bi-currency-pound fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fs-3 fw-bold">&pound;{{ "{:,.0f}".format(pending_quote_value) }}</div>
+                            <div class="small opacity-75">Quote Pipeline</div>
+                        </div>
+                        <i class="bi bi-hourglass-split fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fs-3 fw-bold">{{ "{:.0f}".format(conversion_rate) }}%</div>
+                            <div class="small opacity-75">Quote Win Rate</div>
+                        </div>
+                        <i class="bi bi-trophy fs-1 opacity-50"></i>
+                    </div>
+                    <small class="opacity-75">{{ accepted_quotes }}/{{ total_quotes }} YTD</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fs-3 fw-bold">{{ machine_stats|selectattr('status', 'equalto', 'running')|list|length }}/{{ machine_stats|length }}</div>
+                            <div class="small opacity-75">Machines Running</div>
+                        </div>
+                        <i class="bi bi-cpu fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Customers -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-people me-2"></i>Top Customers (YTD)</span>
+                    <a href="{{ url_for('customers.customer_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if customer_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Customer</th>
+                                    <th class="text-end">Orders</th>
+                                    <th class="text-end">Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in customer_stats %}
+                                <tr>
+                                    <td>
+                                        {% if loop.index <= 3 %}
+                                        <span class="badge bg-{{ 'warning' if loop.index == 1 else 'secondary' }}">{{ loop.index }}</span>
+                                        {% else %}
+                                        {{ loop.index }}
+                                        {% endif %}
+                                    </td>
+                                    <td><a href="{{ url_for('customers.customer_detail', customer_id=stat.id) }}">{{ stat.name }}</a></td>
+                                    <td class="text-end">{{ stat.order_count }}</td>
+                                    <td class="text-end"><strong>&pound;{{ "{:,.0f}".format(stat.revenue or 0) }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>
+                        No order data yet
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Machine Status -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cpu me-2"></i>Machine Status</span>
+                    <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-sm btn-outline-primary">Schedule</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Machine</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Running Jobs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in machine_stats %}
+                                <tr>
+                                    <td>
+                                        <i class="bi bi-circle-fill text-{{ 'success' if stat.status == 'running' else 'warning' if stat.status == 'maintenance' else 'secondary' }} me-2"></i>
+                                        {{ stat.machine.name }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ 'success' if stat.status == 'running' else 'warning' if stat.status == 'maintenance' else 'secondary' }}">
+                                            {{ stat.status|title }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">{{ stat.running_jobs }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-box-seam me-2"></i>Most Produced Items (YTD)
+                </div>
+                <div class="card-body p-0">
+                    {% if top_items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Item</th>
+                                    <th class="text-end">Runs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in top_items %}
+                                <tr>
+                                    <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}">{{ item.sku }}</a></td>
+                                    <td>{{ item.name[:30] }}{% if item.name|length > 30 %}...{% endif %}</td>
+                                    <td class="text-end">{{ item.production_count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+                        No production data yet
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-lightning me-2"></i>Quick Actions
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <a href="{{ url_for('costing.quote_new') }}" class="btn btn-lg btn-outline-primary w-100 py-3">
+                                <i class="bi bi-calculator d-block fs-2"></i>
+                                New Quote
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('orders.order_create') }}" class="btn btn-lg btn-outline-success w-100 py-3">
+                                <i class="bi bi-cart-plus d-block fs-2"></i>
+                                New Order
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('costing.rates_list') }}" class="btn btn-lg btn-outline-warning w-100 py-3">
+                                <i class="bi bi-sliders d-block fs-2"></i>
+                                Manage Rates
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('reports.report_index') }}" class="btn btn-lg btn-outline-info w-100 py-3">
+                                <i class="bi bi-file-earmark-bar-graph d-block fs-2"></i>
+                                Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profit Tips -->
+    <div class="card border-success mb-4">
+        <div class="card-header bg-success text-white">
+            <i class="bi bi-lightbulb me-2"></i>Profit Improvement Tips
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h6><i class="bi bi-graph-up text-success me-2"></i>Track OEE Daily</h6>
+                    <p class="small text-muted mb-0">Target 85%+ OEE. Every 1% improvement = significant profit gain. Log downtime reasons to identify patterns.</p>
+                </div>
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h6><i class="bi bi-trash text-danger me-2"></i>Reduce Scrap Below 5%</h6>
+                    <p class="small text-muted mb-0">Track scrap by machine, operator, and material. Investigate any job exceeding 3% scrap rate immediately.</p>
+                </div>
+                <div class="col-md-4">
+                    <h6><i class="bi bi-arrow-repeat text-primary me-2"></i>Group Same-Material Jobs</h6>
+                    <p class="small text-muted mb-0">Schedule jobs using same material together. Each colour change = 30-60 min lost. Schedule dark colours after light.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

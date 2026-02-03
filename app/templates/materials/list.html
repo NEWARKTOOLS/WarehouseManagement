@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Materials{% endblock %}
+{% block mobile_title %}Materials{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Materials</h4>
+            <p class="text-muted mb-0">Manage raw materials, suppliers, and pricing</p>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('materials.material_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> New Material
+            </a>
+            <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                <span class="visually-hidden">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{{ url_for('materials.supplier_list') }}"><i class="bi bi-building"></i> Suppliers</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('materials.masterbatch_list') }}"><i class="bi bi-palette"></i> Masterbatches</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-primary mb-1">{{ stats.total_materials }}</div>
+                    <div class="text-muted">Materials</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-success mb-1">{{ stats.total_suppliers }}</div>
+                    <div class="text-muted">Suppliers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 {% if stats.low_stock > 0 %}text-danger{% else %}text-secondary{% endif %} mb-1">{{ stats.low_stock }}</div>
+                    <div class="text-muted">Low Stock</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small">Material Type</label>
+                    <select name="type" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        {% for mt in material_types %}
+                        <option value="{{ mt }}" {% if selected_type == mt %}selected{% endif %}>{{ mt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Supplier</label>
+                    <select name="supplier" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Suppliers</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}" {% if selected_supplier == s.id %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">Search</label>
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="Code, name, or grade..." value="{{ search }}">
+                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('materials.material_list') }}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Materials Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name / Grade</th>
+                        <th>Type</th>
+                        <th>Supplier</th>
+                        <th class="text-end">Cost/kg</th>
+                        <th class="text-end">Stock (kg)</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in materials %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('materials.material_detail', material_id=m.id) }}" class="fw-bold text-decoration-none">
+                                {{ m.code }}
+                            </a>
+                        </td>
+                        <td>
+                            <div>{{ m.name }}</div>
+                            {% if m.grade %}<small class="text-muted">{{ m.grade }}</small>{% endif %}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ m.material_type }}</span></td>
+                        <td>{{ m.supplier.name if m.supplier else '-' }}</td>
+                        <td class="text-end">
+                            <strong>£{{ "%.2f"|format(m.cost_per_kg) }}</strong>
+                            {% if m.last_price_update %}
+                            <br><small class="text-muted">{{ m.last_price_update.strftime('%d/%m/%y') }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {{ "%.1f"|format(m.current_stock_kg or 0) }}
+                            {% if m.min_stock_kg and m.current_stock_kg and m.current_stock_kg < m.min_stock_kg %}
+                            <br><small class="text-danger">Below min ({{ "%.0f"|format(m.min_stock_kg) }})</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if m.min_stock_kg and m.current_stock_kg and m.current_stock_kg < m.min_stock_kg %}
+                            <span class="badge bg-danger">Low</span>
+                            {% else %}
+                            <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('materials.material_detail', material_id=m.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('materials.material_edit', material_id=m.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No materials found. <a href="{{ url_for('materials.material_new') }}">Add your first material</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row mt-4">
+        <div class="col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6><i class="bi bi-building"></i> Suppliers</h6>
+                    <p class="text-muted small mb-2">Manage material suppliers and contacts</p>
+                    <a href="{{ url_for('materials.supplier_list') }}" class="btn btn-sm btn-outline-primary">View Suppliers</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6><i class="bi bi-palette"></i> Masterbatches</h6>
+                    <p class="text-muted small mb-2">Colour and additive masterbatches</p>
+                    <a href="{{ url_for('materials.masterbatch_list') }}" class="btn btn-sm btn-outline-primary">View Masterbatches</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

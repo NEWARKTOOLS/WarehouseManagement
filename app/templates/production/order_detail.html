@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block mobile_title %}{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('production.order_list') }}">Production</a></li>
+                    <li class="breadcrumb-item active">{{ order.order_number }}</li>
+                </ol>
+            </nav>
+            <h1>{{ order.item.name }}</h1>
+        </div>
+        <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Progress -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h3 class="mb-0">{{ order.quantity_required|int }}</h3>
+                            <small class="text-muted">Required</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="mb-0 text-success">{{ order.quantity_good|int }}</h3>
+                            <small class="text-muted">Good</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="mb-0 text-danger">{{ order.quantity_rejected|int }}</h3>
+                            <small class="text-muted">Rejected</small>
+                        </div>
+                    </div>
+                    <div class="progress mt-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" style="width: {{ (order.quantity_good / order.quantity_required * 100) if order.quantity_required > 0 else 0 }}%">
+                            {{ order.completion_percentage|round(0) }}%
+                        </div>
+                        {% if order.quantity_rejected > 0 %}
+                        <div class="progress-bar bg-danger" style="width: {{ (order.quantity_rejected / order.quantity_required * 100) if order.quantity_required > 0 else 0 }}%"></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions based on status -->
+            {% if order.status == 'planned' %}
+            <div class="card mb-3">
+                <div class="card-header">Start Production</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('production.order_start', order_id=order.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Select Machine *</label>
+                                <select class="form-select" name="machine_id" required>
+                                    <option value="">Choose machine...</option>
+                                    {% for machine in machines %}
+                                    <option value="{{ machine.id }}">{{ machine.name }} ({{ machine.tonnage }}T) - {{ machine.status|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success btn-lg w-100">
+                                    <i class="bi bi-play-fill me-2"></i> Start Production
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% elif order.status == 'in_progress' %}
+            <!-- Update Quantity -->
+            <div class="card mb-3">
+                <div class="card-header">Record Production</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('production.order_update_quantity', order_id=order.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label">Good Quantity</label>
+                                <input type="number" class="form-control" name="good_quantity" value="0" min="0">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Rejected Quantity</label>
+                                <input type="number" class="form-control" name="rejected_quantity" value="0" min="0">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <input type="text" class="form-control" name="notes" placeholder="Optional notes...">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle me-2"></i> Add Quantity
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Complete Production -->
+            <div class="card mb-3">
+                <div class="card-header">Complete Production</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('production.order_complete', order_id=order.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Final Good Quantity</label>
+                                <input type="number" class="form-control" name="final_good_quantity" value="{{ order.quantity_good|int }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Store to Location</label>
+                                <select class="form-select" name="location_id">
+                                    <option value="">Select location...</option>
+                                    {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.code }} - {{ loc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" name="notes" rows="2"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i> Complete Production
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Activity Log -->
+            <div class="card mb-3">
+                <div class="card-header">Activity Log</div>
+                <div class="card-body p-0">
+                    {% if logs %}
+                    <div class="list-group list-group-flush">
+                        {% for log in logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    <span class="badge bg-{{ 'success' if log.log_type == 'start' else 'info' if log.log_type == 'quantity_update' else 'primary' if log.log_type == 'stop' else 'warning' }}">
+                                        {{ log.log_type|replace('_', ' ')|title }}
+                                    </span>
+                                    {% if log.quantity %}+{{ log.quantity|int }} (Good: {{ log.good_quantity|int if log.good_quantity else 0 }}, Reject: {{ log.rejected_quantity|int if log.rejected_quantity else 0 }}){% endif %}
+                                </span>
+                                <small class="text-muted">{{ log.created_at.strftime('%d/%m %H:%M') }}</small>
+                            </div>
+                            {% if log.notes %}<small class="text-muted">{{ log.notes }}</small>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-3">
+                        <p class="mb-0">No activity yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Order Details -->
+            <div class="card mb-3">
+                <div class="card-header">Order Details</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Order #</th>
+                            <td>{{ order.order_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Item</th>
+                            <td><a href="{{ url_for('inventory.item_detail', item_id=order.item.id) }}">{{ order.item.sku }}</a></td>
+                        </tr>
+                        <tr>
+                            <th>Type</th>
+                            <td>{{ order.order_type|replace('_', ' ')|title }}</td>
+                        </tr>
+                        <tr>
+                            <th>Priority</th>
+                            <td>{{ order.priority }}</td>
+                        </tr>
+                        <tr>
+                            <th>Due Date</th>
+                            <td>{{ order.due_date.strftime('%d/%m/%Y') if order.due_date else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Machine</th>
+                            <td>{{ order.machine.name if order.machine else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Mould</th>
+                            <td>{{ order.mould.mould_number if order.mould else '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Setup Sheet -->
+            {% if setup_sheet %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Setup Sheet</span>
+                    <a href="{{ url_for('production.setup_sheet_view', setup_sheet_id=setup_sheet.id) }}" class="btn btn-sm btn-outline-primary">
+                        View Full
+                    </a>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr><th>Program #</th><td>{{ setup_sheet.program_number or '-' }}</td></tr>
+                        <tr><th>Cycle Time</th><td>{{ setup_sheet.cycle_time or '-' }}s</td></tr>
+                        <tr><th>Material</th><td>{{ setup_sheet.material_type or '-' }}</td></tr>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if order.notes %}
+            <div class="card mb-3">
+                <div class="card-header">Notes</div>
+                <div class="card-body">{{ order.notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

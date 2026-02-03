@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block mobile_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <!-- Welcome Header -->
+    <div class="page-header">
+        <div>
+            {% if company_settings and company_settings.logo_filename %}
+            <img src="{{ url_for('static', filename='img/' + company_settings.logo_filename) }}"
+                 alt="{{ company_settings.company_name }}" style="max-height: 40px;" class="mb-2">
+            {% elif company_settings and company_settings.company_name %}
+            <h1 class="mb-1">{{ company_settings.company_name }}</h1>
+            {% else %}
+            <h1>Dashboard</h1>
+            {% endif %}
+            <p class="text-muted mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
+        </div>
+        <!-- Alerts Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary position-relative" type="button" id="alertsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-bell"></i>
+                {% set total_alerts = low_stock_count + ready_to_ship + maintenance_overdue + awaiting_sorting_count %}
+                {% if total_alerts > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {{ total_alerts if total_alerts < 100 else '99+' }}
+                </span>
+                {% endif %}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="alertsDropdown" style="min-width: 300px;">
+                <li><h6 class="dropdown-header">Alerts & Notifications</h6></li>
+                {% if awaiting_sorting_count > 0 %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('scheduling.sorting_queue') }}">
+                        <span class="alert-icon bg-warning bg-opacity-10 text-warning rounded-circle p-2 me-3">
+                            <i class="bi bi-inbox"></i>
+                        </span>
+                        <div>
+                            <strong>Awaiting Sorting</strong>
+                            <small class="d-block text-muted">{{ awaiting_sorting_count }} item{{ 's' if awaiting_sorting_count != 1 else '' }} need counting/degating</small>
+                        </div>
+                    </a>
+                </li>
+                {% endif %}
+                {% if maintenance_overdue > 0 %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('production.mould_list') }}?maintenance=overdue">
+                        <span class="alert-icon bg-danger bg-opacity-10 text-danger rounded-circle p-2 me-3">
+                            <i class="bi bi-wrench"></i>
+                        </span>
+                        <div>
+                            <strong>Maintenance Overdue</strong>
+                            <small class="d-block text-muted">{{ maintenance_overdue }} mould{{ 's' if maintenance_overdue != 1 else '' }} need{{ '' if maintenance_overdue != 1 else 's' }} service</small>
+                        </div>
+                    </a>
+                </li>
+                {% endif %}
+                {% if low_stock_count > 0 %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('inventory.item_list') }}?low_stock=true">
+                        <span class="alert-icon bg-danger bg-opacity-10 text-danger rounded-circle p-2 me-3">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </span>
+                        <div>
+                            <strong>Low Stock</strong>
+                            <small class="d-block text-muted">{{ low_stock_count }} item{{ 's' if low_stock_count != 1 else '' }} below reorder point</small>
+                        </div>
+                    </a>
+                </li>
+                {% endif %}
+                {% if ready_to_ship > 0 %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('orders.order_list') }}?status=ready_to_ship">
+                        <span class="alert-icon bg-success bg-opacity-10 text-success rounded-circle p-2 me-3">
+                            <i class="bi bi-truck"></i>
+                        </span>
+                        <div>
+                            <strong>Ready to Ship</strong>
+                            <small class="d-block text-muted">{{ ready_to_ship }} order{{ 's' if ready_to_ship != 1 else '' }} awaiting dispatch</small>
+                        </div>
+                    </a>
+                </li>
+                {% endif %}
+                {% if total_alerts == 0 %}
+                <li>
+                    <div class="dropdown-item text-center py-4 text-muted">
+                        <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                        All clear - no alerts
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Machine Status Grid -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-cpu me-2"></i>Machine Status</span>
+            <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-sm btn-primary">
+                <i class="bi bi-calendar3 me-1"></i>Schedule
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row g-2">
+                {% for machine in machines %}
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <a href="{{ url_for('scheduling.machine_schedule', machine_id=machine.id) }}"
+                       class="card text-decoration-none h-100 machine-card machine-{{ machine.status }}">
+                        <div class="card-body p-2 text-center">
+                            <div class="machine-status-indicator mb-1">
+                                {% if machine.status == 'running' %}
+                                <i class="bi bi-play-circle-fill text-success"></i>
+                                {% elif machine.status == 'idle' %}
+                                <i class="bi bi-pause-circle text-secondary"></i>
+                                {% elif machine.status == 'maintenance' %}
+                                <i class="bi bi-wrench text-warning"></i>
+                                {% else %}
+                                <i class="bi bi-x-circle text-danger"></i>
+                                {% endif %}
+                            </div>
+                            <div class="fw-bold small">{{ machine.name }}</div>
+                            {% if machine.current_job %}
+                            <div class="text-muted" style="font-size: 0.7rem;">{{ machine.current_job.item.sku if machine.current_job.item else 'Job' }}</div>
+                            {% else %}
+                            <div class="text-muted" style="font-size: 0.7rem;">{{ machine.status|title }}</div>
+                            {% endif %}
+                        </div>
+                    </a>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-3 text-muted">
+                    <i class="bi bi-cpu me-2"></i>No machines configured
+                    <a href="{{ url_for('production.machine_list') }}" class="ms-2">Add machines</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-play-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ machines_running }}</div>
+                    <div class="stat-label">Machines Running</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-inbox"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ awaiting_sorting_count }}</div>
+                    <div class="stat-label">Awaiting Sorting</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon {% if pending_orders > 0 %}primary{% else %}secondary{% endif %}">
+                    <i class="bi bi-cart"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ pending_orders }}</div>
+                    <div class="stat-label">Orders to Process</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon {% if maintenance_overdue > 0 %}danger{% else %}success{% endif %}">
+                    <i class="bi bi-wrench"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ maintenance_overdue }}</div>
+                    <div class="stat-label">Maintenance Due</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions - Mobile Optimized -->
+    <div class="d-md-none mb-4">
+        <h5 class="mb-3">Quick Actions</h5>
+        <div class="row g-2">
+            <div class="col-4">
+                <a href="{{ url_for('scheduling.sorting_queue') }}" class="quick-action-btn">
+                    <i class="bi bi-inbox text-warning"></i>
+                    <span>Sorting</span>
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{{ url_for('scheduling.schedule_index') }}" class="quick-action-btn">
+                    <i class="bi bi-calendar3 text-primary"></i>
+                    <span>Schedule</span>
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{{ url_for('main.scan') }}" class="quick-action-btn">
+                    <i class="bi bi-upc-scan text-info"></i>
+                    <span>Scan</span>
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{{ url_for('production.order_create') }}" class="quick-action-btn">
+                    <i class="bi bi-plus-circle text-success"></i>
+                    <span>New Job</span>
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{{ url_for('orders.order_list') }}?status=ready_to_ship" class="quick-action-btn">
+                    <i class="bi bi-truck text-primary"></i>
+                    <span>Dispatch</span>
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{{ url_for('inventory.receive_stock') }}" class="quick-action-btn">
+                    <i class="bi bi-box-arrow-in-down text-success"></i>
+                    <span>Receive</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Today's Jobs -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-calendar-day me-2"></i>Today's Jobs</span>
+                    <a href="{{ url_for('scheduling.day_view', date_str=today.strftime('%Y-%m-%d')) }}" class="btn btn-sm btn-outline-primary">View Day</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if todays_jobs %}
+                    <div class="list-group list-group-flush">
+                        {% for job in todays_jobs[:6] %}
+                        <a href="{{ url_for('scheduling.job_detail', job_id=job.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-{{ 'success' if job.status == 'in_progress' else 'secondary' }} me-2">
+                                            {{ job.machine.name if job.machine else 'Unassigned' }}
+                                        </span>
+                                        <strong>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</strong>
+                                    </div>
+                                    <small class="text-muted">
+                                        {{ job.production_order.item.name if job.production_order and job.production_order.item else '' }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">{{ job.production_order.quantity_required|int if job.production_order else 0 }}</div>
+                                    <small class="text-muted">pcs</small>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% if todays_jobs|length > 6 %}
+                    <div class="p-2 text-center bg-light">
+                        <a href="{{ url_for('scheduling.day_view', date_str=today.strftime('%Y-%m-%d')) }}">+{{ todays_jobs|length - 6 }} more jobs</a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <i class="bi bi-calendar-x"></i>
+                        <p>No jobs scheduled for today</p>
+                        <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-primary btn-sm">Open Schedule</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Urgent Orders -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center bg-danger bg-opacity-10">
+                    <span><i class="bi bi-exclamation-diamond me-2 text-danger"></i>Urgent Orders (Due in 3 Days)</span>
+                    <a href="{{ url_for('orders.order_list') }}" class="btn btn-sm btn-outline-danger">All Orders</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if urgent_orders %}
+                    <div class="list-group list-group-flush">
+                        {% for order in urgent_orders[:5] %}
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ order.order_number }}</strong>
+                                    <span class="status-badge status-{{ order.status }} ms-2">{{ order.status|replace('_', ' ')|title }}</span>
+                                    <div class="text-muted small">{{ order.customer.name if order.customer else 'No customer' }}</div>
+                                </div>
+                                <div class="text-end">
+                                    {% set days_until = (order.required_date - today).days %}
+                                    <span class="badge bg-{{ 'danger' if days_until <= 0 else 'warning' if days_until <= 1 else 'info' }}">
+                                        {% if days_until < 0 %}
+                                        {{ (-days_until) }} day{{ 's' if days_until != -1 else '' }} overdue
+                                        {% elif days_until == 0 %}
+                                        Due today
+                                        {% elif days_until == 1 %}
+                                        Tomorrow
+                                        {% else %}
+                                        {{ days_until }} days
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <p class="text-success">No urgent orders</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row: Production & Inventory -->
+    <div class="row">
+        <!-- Active Production Orders -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-gear me-2"></i>Active Production</span>
+                    <a href="{{ url_for('production.order_list') }}?status=in_progress" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if active_production > 0 %}
+                    <div class="list-group list-group-flush">
+                        {% for movement in recent_movements[:5] if movement.movement_type == 'production' %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ movement.item.sku }}</strong>
+                                <span class="badge bg-warning">In Progress</span>
+                            </div>
+                            <small class="text-muted">{{ movement.item.name }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <i class="bi bi-gear"></i>
+                        <p>No active production jobs</p>
+                        <a href="{{ url_for('production.order_create') }}" class="btn btn-primary btn-sm">Create Job</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cart me-2"></i>Recent Orders</span>
+                    <a href="{{ url_for('orders.order_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_orders %}
+                    <div class="list-group list-group-flush">
+                        {% for order in recent_orders %}
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ order.order_number }}</strong>
+                                <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+                            </div>
+                            <small class="text-muted">{{ order.customer.name if order.customer else 'No customer' }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <i class="bi bi-cart"></i>
+                        <p>No recent orders</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Stock Value</h6>
+                    <h3 class="mb-0">&pound;{{ "{:,.2f}".format(stock_value) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Items</h6>
+                    <h3 class="mb-0">{{ total_items }} <small class="text-muted fs-6">SKUs</small></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Low Stock Alerts</h6>
+                    <h3 class="mb-0 {% if low_stock_count > 0 %}text-danger{% endif %}">{{ low_stock_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.machine-card {
+    border: 2px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+.machine-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.machine-card.machine-running {
+    border-color: #198754;
+    background: rgba(25, 135, 84, 0.05);
+}
+.machine-card.machine-idle {
+    border-color: #6c757d;
+    background: rgba(108, 117, 125, 0.05);
+}
+.machine-card.machine-maintenance {
+    border-color: #ffc107;
+    background: rgba(255, 193, 7, 0.1);
+}
+.machine-card.machine-offline {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+}
+.machine-status-indicator i {
+    font-size: 1.5rem;
+}
+</style>
+{% endblock %}

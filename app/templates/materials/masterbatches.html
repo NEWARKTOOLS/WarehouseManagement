@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Masterbatches{% endblock %}
+{% block mobile_title %}Masterbatches{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('materials.material_list') }}">Materials</a></li>
+                    <li class="breadcrumb-item active">Masterbatches</li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">Masterbatches</h4>
+            <p class="text-muted mb-0">Colour and additive masterbatches for injection moulding</p>
+        </div>
+        <a href="{{ url_for('materials.masterbatch_new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Masterbatch
+        </a>
+    </div>
+
+    <!-- Masterbatches Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Colour</th>
+                        <th>Type</th>
+                        <th>Supplier</th>
+                        <th class="text-end">Cost/kg</th>
+                        <th class="text-center">Typical %</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mb in masterbatches %}
+                    <tr>
+                        <td class="fw-bold">{{ mb.code }}</td>
+                        <td>{{ mb.name }}</td>
+                        <td>
+                            {% if mb.color_hex %}
+                            <span class="d-inline-block rounded-circle me-1" style="width:16px;height:16px;background-color:{{ mb.color_hex }};border:1px solid #ccc;"></span>
+                            {% endif %}
+                            {{ mb.color or '-' }}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ mb.masterbatch_type }}</span></td>
+                        <td>{{ mb.supplier.name if mb.supplier else '-' }}</td>
+                        <td class="text-end">£{{ "%.2f"|format(mb.cost_per_kg) }}</td>
+                        <td class="text-center">{{ mb.typical_loading_percent or '-' }}%</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('materials.masterbatch_edit', masterbatch_id=mb.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-palette fs-1 d-block mb-2"></i>
+                            No masterbatches found. <a href="{{ url_for('materials.masterbatch_new') }}">Add your first masterbatch</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle text-primary"></i> What are Masterbatches?</h6>
+                    <p class="text-muted small mb-0">
+                        Masterbatches are concentrated pigments or additives that are mixed with base polymer
+                        during injection moulding. They typically make up 1-4% of the total material weight.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6><i class="bi bi-calculator text-primary"></i> Cost Calculation</h6>
+                    <p class="text-muted small mb-0">
+                        When a part uses a masterbatch, the material cost is calculated as:<br>
+                        <code>(Base material × (100-ratio%)) + (Masterbatch × ratio%)</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

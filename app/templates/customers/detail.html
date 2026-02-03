@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.name }}{% endblock %}
+{% block mobile_title %}{{ customer.customer_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('customers.customer_list') }}">Customers</a></li>
+                    <li class="breadcrumb-item active">{{ customer.customer_code }}</li>
+                </ol>
+            </nav>
+            <h1>{{ customer.name }}</h1>
+        </div>
+        <div class="d-flex gap-2">
+            {% if customer.is_jit %}<span class="badge bg-warning">JIT Customer</span>{% endif %}
+            <a href="{{ url_for('customers.customer_edit', customer_id=customer.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Order Stats -->
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-cart"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">{{ order_stats.total_orders }}</div>
+                            <div class="stat-label">Total Orders</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">{{ order_stats.pending_orders }}</div>
+                            <div class="stat-label">Pending Orders</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Recent Orders</span>
+                    <a href="{{ url_for('orders.order_create') }}?customer_id={{ customer.id }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus"></i> New Order
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_orders %}
+                    <div class="list-group list-group-flush">
+                        {% for order in recent_orders %}
+                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ order.order_number }}</strong>
+                                <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+                            </div>
+                            <small class="text-muted">
+                                {{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '' }} |
+                                &pound;{{ "{:,.2f}".format(order.total) }}
+                            </small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <p>No orders yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Contact Info -->
+            <div class="card mb-3">
+                <div class="card-header">Contact Information</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Code</th>
+                            <td>{{ customer.customer_code }}</td>
+                        </tr>
+                        <tr>
+                            <th>Contact</th>
+                            <td>{{ customer.contact_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email</th>
+                            <td>{{ customer.email or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Phone</th>
+                            <td>{{ customer.phone or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Terms</th>
+                            <td>{{ customer.credit_terms }} days</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Address -->
+            <div class="card mb-3">
+                <div class="card-header">Address</div>
+                <div class="card-body">
+                    <p class="mb-0">
+                        {{ customer.address_line1 or '' }}<br>
+                        {% if customer.address_line2 %}{{ customer.address_line2 }}<br>{% endif %}
+                        {{ customer.city or '' }}<br>
+                        {{ customer.county or '' }}<br>
+                        {{ customer.postcode or '' }}<br>
+                        {{ customer.country or '' }}
+                    </p>
+                </div>
+            </div>
+
+            {% if customer.special_requirements %}
+            <div class="card mb-3">
+                <div class="card-header">Special Requirements</div>
+                <div class="card-body">{{ customer.special_requirements }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if mould else 'New' }} Mould{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1>{{ 'Edit Mould' if mould else 'New Mould' }}</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Mould Number *</label>
+                                <input type="text" class="form-control" name="mould_number" value="{{ mould.mould_number if mould else '' }}" {{ 'readonly' if mould else 'required' }} style="text-transform: uppercase;">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-control" name="name" value="{{ mould.name if mould else '' }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" name="description" rows="2">{{ mould.description if mould else '' }}</textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Mould Type</label>
+                                <select class="form-select" name="mould_type">
+                                    <option value="individual" {% if mould and mould.mould_type == 'individual' %}selected{% endif %}>Individual</option>
+                                    <option value="family" {% if mould and mould.mould_type == 'family' %}selected{% endif %}>Family</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Bolster Number</label>
+                                <input type="text" class="form-control" name="bolster_number" value="{{ mould.bolster_number if mould else '' }}" placeholder="For family moulds">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Tonnage Required</label>
+                                <input type="number" class="form-control" name="tonnage_required" value="{{ mould.tonnage_required if mould else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Number of Cavities</label>
+                                <input type="number" class="form-control" name="num_cavities" value="{{ mould.num_cavities if mould else 1 }}" min="1">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Cycle Time (s)</label>
+                                <input type="number" class="form-control" name="cycle_time_seconds" step="0.1" value="{{ mould.cycle_time_seconds if mould else '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Material Compatibility</label>
+                                <input type="text" class="form-control" name="material_compatibility" value="{{ mould.material_compatibility if mould else '' }}" placeholder="PP, ABS, etc.">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Storage Location</label>
+                                <input type="text" class="form-control" name="storage_location" value="{{ mould.storage_location if mould else '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Maintenance Interval (months)</label>
+                                <input type="number" class="form-control" name="maintenance_interval_months" value="{{ mould.maintenance_interval_months if mould else 12 }}" min="1">
+                            </div>
+
+                            {% if mould %}
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="available" {% if mould.status == 'available' %}selected{% endif %}>Available</option>
+                                    <option value="in_use" {% if mould.status == 'in_use' %}selected{% endif %}>In Use</option>
+                                    <option value="maintenance" {% if mould.status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                                    <option value="awaiting_repair" {% if mould.status == 'awaiting_repair' %}selected{% endif %}>Awaiting Repair</option>
+                                </select>
+                            </div>
+                            {% endif %}
+
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" name="notes" rows="2">{{ mould.notes if mould else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> {{ 'Update' if mould else 'Create' }} Mould
+                            </button>
+                            <a href="{{ url_for('moulds.mould_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

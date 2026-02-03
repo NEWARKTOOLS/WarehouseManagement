@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Categories{% endblock %}
+{% block mobile_title %}Categories{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1>Categories</h1>
+        <a href="{{ url_for('inventory.category_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add Category
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for cat in categories %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ cat.name }}</strong>
+                        {% if cat.category_type %}
+                        <span class="badge bg-secondary ms-2">{{ cat.category_type|replace('_', ' ')|title }}</span>
+                        {% endif %}
+                        {% if cat.description %}
+                        <br><small class="text-muted">{{ cat.description }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary rounded-pill">{{ cat.items.count() }} items</span>
+                        {% if current_user.is_admin() %}
+                        <form method="POST" action="{{ url_for('inventory.category_delete', category_id=cat.id) }}" class="d-inline"
+                              onsubmit="return confirm('Delete category \'{{ cat.name }}\'?\n\n{% if cat.items.count() > 0 %}This category has {{ cat.items.count() }} item(s). They will become uncategorized.{% else %}This cannot be undone.{% endif %}')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state py-4">
+                    <i class="bi bi-folder"></i>
+                    <p>No categories yet</p>
+                    <a href="{{ url_for('inventory.category_create') }}" class="btn btn-primary">Create Category</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

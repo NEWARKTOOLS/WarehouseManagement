@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ machine.name }}{% endblock %}
+{% block mobile_title %}{{ machine.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2">
+    <!-- Machine Header -->
+    <div class="card mb-3 {% if machine.status == 'running' %}border-success{% endif %}">
+        <div class="card-body text-center py-3 {% if machine.status == 'running' %}bg-success bg-opacity-10{% endif %}">
+            <div class="display-6 fw-bold">{{ machine.name }}</div>
+            <div class="text-muted">{{ machine.tonnage }}T {{ machine.manufacturer or '' }}</div>
+            <div class="mt-2">
+                {% if machine.status == 'running' %}
+                <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-play-circle me-1"></i> RUNNING</span>
+                {% elif machine.status == 'idle' %}
+                <span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-pause-circle me-1"></i> IDLE</span>
+                {% elif machine.status == 'maintenance' %}
+                <span class="badge bg-warning fs-6 px-3 py-2"><i class="bi bi-wrench me-1"></i> MAINTENANCE</span>
+                {% else %}
+                <span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-x-circle me-1"></i> OFFLINE</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Job -->
+    {% if current_job %}
+    <div class="card mb-3 border-success">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-play-circle me-2"></i>Currently Running</span>
+            {% if current_job.actual_start_time %}
+            <span class="badge bg-light text-dark">Started {{ current_job.actual_start_time.strftime('%H:%M') }}</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <h4 class="mb-1">{{ current_job.production_order.item.sku if current_job.production_order and current_job.production_order.item else 'N/A' }}</h4>
+            <p class="text-muted mb-3">{{ current_job.production_order.item.name if current_job.production_order and current_job.production_order.item else '' }}</p>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <div class="bg-light rounded p-3 text-center">
+                        <div class="fs-3 fw-bold">{{ current_job.production_order.quantity_required|int if current_job.production_order else 0 }}</div>
+                        <small class="text-muted">Required</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="bg-light rounded p-3 text-center">
+                        <div class="fs-3 fw-bold text-success">{{ current_job.production_order.quantity_produced|int if current_job.production_order else 0 }}</div>
+                        <small class="text-muted">Produced</small>
+                    </div>
+                </div>
+            </div>
+
+            {% if current_job.production_order.mould %}
+            <div class="mb-3 p-2 bg-light rounded">
+                <small class="text-muted">Mould:</small>
+                <strong>{{ current_job.production_order.mould.mould_number }}</strong>
+                {% if current_job.production_order.mould.name %}
+                - {{ current_job.production_order.mould.name }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if current_job.production_order.customer %}
+            <div class="mb-3 p-2 bg-info bg-opacity-10 rounded">
+                <small class="text-muted">Customer:</small>
+                <strong>{{ current_job.production_order.customer.name }}</strong>
+            </div>
+            {% endif %}
+
+            {% if current_job.production_order.due_date %}
+            <div class="mb-3 p-2 bg-{{ current_job.urgency_class }} bg-opacity-10 rounded">
+                <small class="text-muted">Due Date:</small>
+                <strong class="text-{{ current_job.urgency_class }}">
+                    {{ current_job.production_order.due_date.strftime('%d/%m/%Y') }}
+                    {% set days = (current_job.production_order.due_date - today).days %}
+                    {% if days < 0 %}({{ -days }} days overdue!){% elif days == 0 %}(TODAY!){% elif days == 1 %}(Tomorrow){% else %}({{ days }} days){% endif %}
+                </strong>
+            </div>
+            {% endif %}
+
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('scheduling.complete_job', job_id=current_job.id) }}" class="btn btn-success btn-lg">
+                    <i class="bi bi-check-circle me-2"></i>Complete Job
+                </a>
+                <a href="{{ url_for('scheduling.job_detail', job_id=current_job.id) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-info-circle me-2"></i>View Details / Setup Sheet
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Current Job -->
+    <div class="card mb-3">
+        <div class="card-body text-center py-4">
+            <i class="bi bi-pause-circle fs-1 text-muted d-block mb-2"></i>
+            <h5 class="text-muted">No job currently running</h5>
+            {% if next_job %}
+            <p class="mb-0">Next job ready to start below</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Next Job -->
+    {% if next_job and next_job != current_job %}
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-skip-forward me-2"></i>Up Next
+        </div>
+        <div class="card-body">
+            <h5 class="mb-1">{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</h5>
+            <p class="text-muted mb-2">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</p>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <small class="text-muted">Quantity:</small>
+                    <div class="fw-bold">{{ next_job.production_order.quantity_required|int if next_job.production_order else 0 }} pcs</div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Mould:</small>
+                    <div class="fw-bold">{{ next_job.production_order.mould.mould_number if next_job.production_order and next_job.production_order.mould else 'TBC' }}</div>
+                </div>
+            </div>
+
+            {% if next_job.status == 'scheduled' %}
+            <form action="{{ url_for('scheduling.start_job', job_id=next_job.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-lg w-100">
+                    <i class="bi bi-play-fill me-2"></i>Start This Job
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Jobs -->
+    {% if upcoming_jobs|length > (1 if next_job else 0) %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-list-task me-2"></i>Queue ({{ upcoming_jobs|length }} jobs)
+        </div>
+        <div class="list-group list-group-flush">
+            {% for job in upcoming_jobs %}
+            {% if job != current_job and job != next_job %}
+            <a href="{{ url_for('scheduling.job_detail', job_id=job.id) }}" class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</strong>
+                        <small class="text-muted d-block">{{ job.scheduled_date.strftime('%d/%m') }}</small>
+                    </div>
+                    <span class="badge bg-{{ job.urgency_class }}">{{ job.production_order.quantity_required|int if job.production_order else 0 }}</span>
+                </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <a href="{{ url_for('scheduling.technician_view') }}" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-arrow-left me-2"></i>Back
+            </a>
+        </div>
+        <div class="col-6">
+            <a href="{{ url_for('main.scan') }}" class="btn btn-outline-primary btn-lg w-100">
+                <i class="bi bi-upc-scan me-2"></i>Scan
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

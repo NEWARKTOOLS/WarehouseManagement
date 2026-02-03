@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Job Costing{% endblock %}
+{% block mobile_title %}Job Costing{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-currency-pound me-2"></i>Job Costing</h1>
+            <p class="text-muted mb-0">Track actual costs vs quoted costs per production run</p>
+        </div>
+        <a href="{{ url_for('costing.bi_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-graph-up me-1"></i>BI Dashboard
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order #</th>
+                            <th>Item</th>
+                            <th>Customer</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Actual Cost</th>
+                            <th class="text-end">Quoted</th>
+                            <th class="text-center">Variance</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr onclick="window.location='{{ url_for('costing.job_costing_detail', order_id=order.id) }}'" style="cursor: pointer;">
+                            <td><strong>{{ order.order_number }}</strong></td>
+                            <td>
+                                {% if order.item %}
+                                {{ order.item.sku }}
+                                <br><small class="text-muted">{{ order.item.name[:25] }}</small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ order.customer.name if order.customer else '-' }}</td>
+                            <td class="text-end">{{ order.quantity_required|int }}</td>
+                            <td class="text-end">
+                                {% if order.costing %}
+                                &pound;{{ "{:,.2f}".format(order.costing.actual_total_cost) }}
+                                {% else %}
+                                <span class="text-muted">Not tracked</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if order.costing and order.costing.quoted_total_cost %}
+                                &pound;{{ "{:,.2f}".format(order.costing.quoted_total_cost) }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if order.costing and order.costing.quoted_total_cost %}
+                                {% set variance = order.costing.cost_variance_percent %}
+                                <span class="badge bg-{{ 'danger' if variance > 10 else 'warning' if variance > 0 else 'success' }}">
+                                    {% if variance > 0 %}+{% endif %}{{ "{:.1f}".format(variance) }}%
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if order.status == 'completed' else 'primary' if order.status == 'in_progress' else 'secondary' }}">
+                                    {{ order.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-currency-pound fs-1 text-muted d-block mb-3"></i>
+                <h5 class="text-muted">No production orders to cost yet</h5>
+                <p class="text-muted">Completed and in-progress production orders will appear here for costing</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Help Text -->
+    <div class="card mt-4 border-info">
+        <div class="card-header bg-info bg-opacity-10">
+            <i class="bi bi-info-circle me-2"></i>How Job Costing Works
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>What to Track</h6>
+                    <ul class="small mb-0">
+                        <li><strong>Material:</strong> Actual kg used including scrap</li>
+                        <li><strong>Labour:</strong> Operator hours on the job</li>
+                        <li><strong>Machine:</strong> Run time + setup time</li>
+                        <li><strong>Scrap:</strong> Rejected parts and startup waste</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Why It Matters</h6>
+                    <ul class="small mb-0">
+                        <li>Identify jobs losing money</li>
+                        <li>Improve quote accuracy</li>
+                        <li>Find inefficient processes</li>
+                        <li>Negotiate better with customers</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

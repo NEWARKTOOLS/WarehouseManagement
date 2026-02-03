@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Create Locations{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-grid me-2"></i>Bulk Create Locations</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Create multiple rack locations at once. This will generate location codes in the format:
+                        <code>ZONE-R01-B01-S01</code>
+                    </p>
+
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Zone *</label>
+                                <input type="text" class="form-control" name="zone" required placeholder="UP, OUT, etc." style="text-transform: uppercase;">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Location Type</label>
+                                <select class="form-select" name="location_type">
+                                    <option value="rack">Racking</option>
+                                    <option value="pallet">Pallet Position</option>
+                                    <option value="bulk">Bulk Storage</option>
+                                </select>
+                            </div>
+
+                            <div class="col-4">
+                                <label class="form-label">Number of Rows</label>
+                                <input type="number" class="form-control" name="rows" value="1" min="1" max="50">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Bays per Row</label>
+                                <input type="number" class="form-control" name="bays" value="1" min="1" max="50">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Shelves per Bay</label>
+                                <input type="number" class="form-control" name="shelves" value="1" min="1" max="10">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Capacity Unit</label>
+                                <select class="form-select" name="capacity_units">
+                                    <option value="boxes">Boxes</option>
+                                    <option value="units">Units</option>
+                                    <option value="pallets">Pallets</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Max Capacity (each)</label>
+                                <input type="number" class="form-control" name="max_capacity" value="1" step="1">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This will create <strong id="totalLocations">1</strong> location(s)
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-grid me-1"></i> Create Locations
+                            </button>
+                            <a href="{{ url_for('locations.location_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateTotal() {
+    const rows = parseInt(document.querySelector('[name="rows"]').value) || 0;
+    const bays = parseInt(document.querySelector('[name="bays"]').value) || 0;
+    const shelves = parseInt(document.querySelector('[name="shelves"]').value) || 0;
+    document.getElementById('totalLocations').textContent = rows * bays * shelves;
+}
+
+document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('input', updateTotal);
+});
+</script>
+{% endblock %}

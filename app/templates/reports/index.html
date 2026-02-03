@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+{% block mobile_title %}Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-graph-up me-2"></i>Reports</h1>
+    </div>
+
+    <div class="row g-3">
+        <!-- Inventory Reports -->
+        <div class="col-12">
+            <h5 class="text-muted mb-3">Inventory Reports</h5>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.stock_on_hand') }}" class="quick-action-btn">
+                <i class="bi bi-box text-primary"></i>
+                <span>Stock on Hand</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.low_stock') }}" class="quick-action-btn">
+                <i class="bi bi-exclamation-triangle text-danger"></i>
+                <span>Low Stock</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.stock_value') }}" class="quick-action-btn">
+                <i class="bi bi-currency-pound text-success"></i>
+                <span>Stock Valuation</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.stock_movements') }}" class="quick-action-btn">
+                <i class="bi bi-arrow-left-right text-info"></i>
+                <span>Stock Movements</span>
+            </a>
+        </div>
+
+        <!-- Production Reports -->
+        <div class="col-12 mt-4">
+            <h5 class="text-muted mb-3">Production Reports</h5>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.production_summary') }}" class="quick-action-btn">
+                <i class="bi bi-gear text-warning"></i>
+                <span>Production Summary</span>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.machine_utilization') }}" class="quick-action-btn">
+                <i class="bi bi-cpu text-secondary"></i>
+                <span>Machine Utilization</span>
+            </a>
+        </div>
+
+        <!-- Order Reports -->
+        <div class="col-12 mt-4">
+            <h5 class="text-muted mb-3">Order Reports</h5>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.order_summary') }}" class="quick-action-btn">
+                <i class="bi bi-cart text-primary"></i>
+                <span>Order Summary</span>
+            </a>
+        </div>
+
+        <!-- Mould Reports -->
+        <div class="col-12 mt-4">
+            <h5 class="text-muted mb-3">Mould Reports</h5>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.mould_maintenance') }}" class="quick-action-btn">
+                <i class="bi bi-tools text-danger"></i>
+                <span>Maintenance Due</span>
+            </a>
+        </div>
+
+        <!-- Quality Reports -->
+        <div class="col-12 mt-4">
+            <h5 class="text-muted mb-3">Quality Reports</h5>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('reports.quality_ncr') }}" class="quick-action-btn">
+                <i class="bi bi-clipboard-x text-danger"></i>
+                <span>Non-Conformances</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

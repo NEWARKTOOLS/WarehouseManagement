@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Job{% endblock %}
+{% block mobile_title %}Complete{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-check-circle me-2"></i>Complete Job</h1>
+            <p class="text-muted mb-0">{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }} - {{ job.production_order.item.name if job.production_order and job.production_order.item else '' }}</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('scheduling.complete_job', job_id=job.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <!-- Quantity Produced -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Quantity Produced</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" class="form-control text-center" name="quantity_produced"
+                                       value="{{ job.production_order.quantity_required|int if job.production_order else 0 }}"
+                                       min="0" step="1" required>
+                                <span class="input-group-text">parts</span>
+                            </div>
+                            <small class="text-muted">Target was {{ job.production_order.quantity_required|int if job.production_order else 0 }} parts</small>
+                        </div>
+
+                        <!-- Where are the parts going? -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Where are the parts going?</label>
+
+                            <div class="row g-3">
+                                <!-- Awaiting Sorting -->
+                                <div class="col-md-6">
+                                    <input type="radio" class="btn-check" name="destination" id="dest_sorting" value="awaiting_sorting" checked>
+                                    <label class="btn btn-outline-warning w-100 py-3" for="dest_sorting">
+                                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                        <strong>Awaiting Sorting</strong>
+                                        <br><small>To be counted/inspected</small>
+                                    </label>
+                                </div>
+
+                                <!-- Awaiting Degating -->
+                                <div class="col-md-6">
+                                    <input type="radio" class="btn-check" name="destination" id="dest_degating" value="awaiting_degating">
+                                    <label class="btn btn-outline-info w-100 py-3" for="dest_degating">
+                                        <i class="bi bi-scissors fs-3 d-block mb-2"></i>
+                                        <strong>Awaiting Degating</strong>
+                                        <br><small>Runners to be removed</small>
+                                    </label>
+                                </div>
+
+                                <!-- Awaiting Assembly -->
+                                <div class="col-md-6">
+                                    <input type="radio" class="btn-check" name="destination" id="dest_assembly" value="awaiting_assembly">
+                                    <label class="btn btn-outline-secondary w-100 py-3" for="dest_assembly">
+                                        <i class="bi bi-tools fs-3 d-block mb-2"></i>
+                                        <strong>Awaiting Assembly</strong>
+                                        <br><small>Further manufacturing</small>
+                                    </label>
+                                </div>
+
+                                <!-- Direct to Location -->
+                                <div class="col-md-6">
+                                    <input type="radio" class="btn-check" name="destination" id="dest_location" value="">
+                                    <label class="btn btn-outline-success w-100 py-3" for="dest_location">
+                                        <i class="bi bi-geo-alt fs-3 d-block mb-2"></i>
+                                        <strong>Direct to Stock</strong>
+                                        <br><small>Finished & counted</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Selection (shown when Direct to Stock selected) -->
+                        <div class="mb-4" id="locationSelect" style="display: none;">
+                            <label class="form-label fw-bold">Select Location</label>
+                            <select class="form-select form-select-lg" id="locationDropdown">
+                                <option value="">Select storage location...</option>
+                                {% for loc in locations %}
+                                <option value="location_{{ loc.id }}">{{ loc.code }} - {{ loc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Any notes about this production run..."></textarea>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg me-2"></i>Complete Job
+                            </button>
+                            <a href="{{ url_for('scheduling.job_detail', job_id=job.id) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- What's Next Preview -->
+            {% if next_job %}
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-arrow-right-circle me-2"></i>Up Next
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</strong>
+                            <br><small class="text-muted">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</small>
+                        </div>
+                        <div class="text-end">
+                            <strong>{{ next_job.production_order.quantity_required|int if next_job.production_order else 0 }}</strong> pcs
+                            {% if next_job.production_order and next_job.production_order.item %}
+                            <br><small>{{ next_job.production_order.item.color or '' }} {{ next_job.production_order.item.material_grade or '' }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const destRadios = document.querySelectorAll('input[name="destination"]');
+const locationSelect = document.getElementById('locationSelect');
+const locationDropdown = document.getElementById('locationDropdown');
+const destLocationRadio = document.getElementById('dest_location');
+
+destRadios.forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.id === 'dest_location') {
+            locationSelect.style.display = 'block';
+            locationDropdown.required = true;
+        } else {
+            locationSelect.style.display = 'none';
+            locationDropdown.required = false;
+        }
+    });
+});
+
+// Update the hidden destination value when location is selected
+locationDropdown.addEventListener('change', function() {
+    if (destLocationRadio.checked) {
+        destLocationRadio.value = this.value;
+    }
+});
+</script>
+{% endblock %}

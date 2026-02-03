@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if machine else 'New' }} Machine{% endblock %}
+{% block mobile_title %}{{ 'Edit' if machine else 'New' }} Machine{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('production.machine_list') }}">Machines</a></li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if machine else 'New' }}</li>
+                </ol>
+            </nav>
+            <h1>{{ 'Edit Machine' if machine else 'New Machine' }}</h1>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Machine Code *</label>
+                        <input type="text" class="form-control" name="machine_code" 
+                               value="{{ machine.machine_code if machine else '' }}"
+                               {{ 'readonly' if machine else '' }}
+                               placeholder="e.g., M01, M02" required>
+                        <div class="form-text">Unique identifier for the machine</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Machine Name *</label>
+                        <input type="text" class="form-control" name="name" 
+                               value="{{ machine.name if machine else '' }}"
+                               placeholder="e.g., Borche 160T #1" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Tonnage *</label>
+                        <input type="number" class="form-control" name="tonnage" 
+                               value="{{ machine.tonnage if machine else '' }}"
+                               placeholder="160" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Manufacturer</label>
+                        <input type="text" class="form-control" name="manufacturer" 
+                               value="{{ machine.manufacturer if machine else 'Borche' }}"
+                               placeholder="Borche">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Model</label>
+                        <input type="text" class="form-control" name="model" 
+                               value="{{ machine.model if machine else '' }}"
+                               placeholder="BT160-V">
+                    </div>
+
+                    {% if machine %}
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                            <option value="idle" {{ 'selected' if machine.status == 'idle' }}>Idle</option>
+                            <option value="running" {{ 'selected' if machine.status == 'running' }}>Running</option>
+                            <option value="maintenance" {{ 'selected' if machine.status == 'maintenance' }}>Maintenance</option>
+                            <option value="offline" {{ 'selected' if machine.status == 'offline' }}>Offline</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"
+                                  placeholder="Any additional notes about this machine">{{ machine.notes if machine else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> {{ 'Update' if machine else 'Create' }} Machine
+                    </button>
+                    <a href="{{ url_for('production.machine_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Sorting Queue{% endblock %}
+{% block mobile_title %}Sorting{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-inbox me-2"></i>Sorting Queue</h1>
+            <p class="text-muted mb-0">Items awaiting counting, degating, or assembly</p>
+        </div>
+        <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-calendar3"></i> Schedule
+        </a>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if not type_filter %}active{% endif %}" href="{{ url_for('scheduling.sorting_queue', status=status_filter) }}">
+                All <span class="badge bg-secondary">{{ counts.counting + counts.degating + counts.assembly + counts.quality_check }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if type_filter == 'counting' %}active{% endif %}" href="{{ url_for('scheduling.sorting_queue', status=status_filter, type='counting') }}">
+                <i class="bi bi-123 me-1"></i>Counting <span class="badge bg-warning">{{ counts.counting }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if type_filter == 'degating' %}active{% endif %}" href="{{ url_for('scheduling.sorting_queue', status=status_filter, type='degating') }}">
+                <i class="bi bi-scissors me-1"></i>Degating <span class="badge bg-info">{{ counts.degating }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if type_filter == 'assembly' %}active{% endif %}" href="{{ url_for('scheduling.sorting_queue', status=status_filter, type='assembly') }}">
+                <i class="bi bi-tools me-1"></i>Assembly <span class="badge bg-secondary">{{ counts.assembly }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Status Filter -->
+    <div class="mb-3">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('scheduling.sorting_queue', type=type_filter, status='pending') }}"
+               class="btn btn-{{ 'primary' if status_filter == 'pending' else 'outline-primary' }}">
+                Pending
+            </a>
+            <a href="{{ url_for('scheduling.sorting_queue', type=type_filter, status='in_progress') }}"
+               class="btn btn-{{ 'primary' if status_filter == 'in_progress' else 'outline-primary' }}">
+                In Progress
+            </a>
+            <a href="{{ url_for('scheduling.sorting_queue', type=type_filter, status='completed') }}"
+               class="btn btn-{{ 'primary' if status_filter == 'completed' else 'outline-primary' }}">
+                Completed
+            </a>
+        </div>
+    </div>
+
+    <!-- Queue Items -->
+    {% if items %}
+    <div class="row">
+        {% for item in items %}
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="badge bg-{{ 'warning' if item.sorting_type == 'counting' else 'info' if item.sorting_type == 'degating' else 'secondary' }}">
+                        {{ item.sorting_type|title }}
+                    </span>
+                    <small class="text-muted">{{ item.created_at.strftime('%d/%m %H:%M') }}</small>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.item.sku if item.item else 'N/A' }}</h5>
+                    <p class="card-text text-muted">{{ item.item.name if item.item else '' }}</p>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="bg-light rounded p-2 text-center">
+                                <div class="fs-5 fw-bold">{{ item.estimated_quantity|int if item.estimated_quantity else '?' }}</div>
+                                <small class="text-muted">Est. Qty</small>
+                            </div>
+                        </div>
+                        {% if item.actual_quantity %}
+                        <div class="col-6">
+                            <div class="bg-success bg-opacity-10 rounded p-2 text-center">
+                                <div class="fs-5 fw-bold text-success">{{ item.actual_quantity|int }}</div>
+                                <small class="text-muted">Actual</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if item.production_order %}
+                    <small class="text-muted d-block mb-2">
+                        <i class="bi bi-file-text"></i> {{ item.production_order.order_number }}
+                    </small>
+                    {% endif %}
+
+                    {% if item.notes %}
+                    <small class="text-muted d-block">
+                        <i class="bi bi-sticky"></i> {{ item.notes }}
+                    </small>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    {% if item.status == 'pending' %}
+                    <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#completeModal{{ item.id }}">
+                        <i class="bi bi-check-lg me-2"></i>Complete & Add to Stock
+                    </button>
+                    {% elif item.status == 'completed' %}
+                    <div class="text-center text-success">
+                        <i class="bi bi-check-circle me-2"></i>Completed {{ item.completed_at.strftime('%d/%m %H:%M') if item.completed_at else '' }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete Modal -->
+        <div class="modal fade" id="completeModal{{ item.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Complete Sorting - {{ item.item.sku if item.item else '' }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('scheduling.complete_sorting', sorting_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Actual Quantity (Good Parts)</label>
+                                <input type="number" class="form-control form-control-lg text-center" name="actual_quantity"
+                                       value="{{ item.estimated_quantity|int if item.estimated_quantity else '' }}" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Rejected Quantity</label>
+                                <input type="number" class="form-control" name="rejected_quantity" value="0" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Stock Location</label>
+                                <select class="form-select" name="location_id" required>
+                                    <option value="">Select location...</option>
+                                    {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.code }} - {{ loc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Complete & Add to Stock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No items in queue</h5>
+        <p class="text-muted">Items will appear here after production jobs are completed</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

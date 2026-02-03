@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote {{ quote.quote_number }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        @media print {
+            body {
+                padding: 0;
+                max-width: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+            @page {
+                margin: 1.5cm;
+            }
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2563eb;
+        }
+        .company-info h1 {
+            font-size: 24px;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+        .company-info p {
+            color: #666;
+            font-size: 11px;
+        }
+        .quote-info {
+            text-align: right;
+        }
+        .quote-info h2 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .quote-number {
+            font-size: 16px;
+            color: #2563eb;
+            font-weight: bold;
+        }
+        .quote-date {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+        .status-draft { background: #fef3c7; color: #92400e; }
+        .status-sent { background: #dbeafe; color: #1e40af; }
+        .status-accepted { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+
+        /* Customer Section */
+        .customer-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .section-box {
+            width: 48%;
+        }
+        .section-box h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        .section-box .content {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .section-box .content strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        /* Quote Details Table */
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .details-table th {
+            background: #2563eb;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .details-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .details-table tr:last-child td {
+            border-bottom: none;
+        }
+        .details-table .label {
+            color: #666;
+            width: 40%;
+        }
+        .details-table .value {
+            font-weight: 500;
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .pricing-section h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .pricing-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .pricing-row:last-child {
+            border-bottom: none;
+        }
+        .pricing-row.total {
+            font-size: 16px;
+            font-weight: bold;
+            padding-top: 15px;
+            margin-top: 10px;
+            border-top: 2px solid #2563eb;
+            border-bottom: none;
+        }
+        .pricing-row .label {
+            color: #666;
+        }
+        .pricing-row .value {
+            font-weight: 500;
+        }
+        .pricing-row.total .value {
+            color: #2563eb;
+            font-size: 20px;
+        }
+
+        /* Cost Breakdown (Internal Only) */
+        .cost-breakdown {
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 5px;
+        }
+        .cost-breakdown h4 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .cost-breakdown table {
+            width: 100%;
+            font-size: 11px;
+        }
+        .cost-breakdown td {
+            padding: 4px 8px;
+        }
+        .cost-breakdown .label {
+            color: #666;
+        }
+        .cost-breakdown .value {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        /* Notes */
+        .notes-section {
+            margin-bottom: 30px;
+        }
+        .notes-section h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .notes-section p {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+
+        /* Terms */
+        .terms {
+            font-size: 10px;
+            color: #666;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .terms h4 {
+            font-size: 11px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .terms ul {
+            margin-left: 20px;
+        }
+        .terms li {
+            margin-bottom: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #2563eb;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #666;
+        }
+
+        /* Print Button */
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .print-controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .print-controls .btn-print {
+            background: #2563eb;
+            color: white;
+        }
+        .print-controls .btn-back {
+            background: #e5e7eb;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    {% if print_mode %}
+    <div class="print-controls no-print">
+        <button class="btn-print" onclick="window.print()">
+            🖨️ Print / Save as PDF
+        </button>
+        <button class="btn-back" onclick="history.back()">
+            ← Back
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="header">
+        <div class="company-info">
+            <h1>ATPM</h1>
+            <p>Advanced Technical Plastic Mouldings</p>
+            <p>Your Address Line 1</p>
+            <p>Your Address Line 2</p>
+            <p>Tel: 01onal 000000</p>
+            <p>Email: sales@atpm.co.uk</p>
+        </div>
+        <div class="quote-info">
+            <h2>QUOTATION</h2>
+            <div class="quote-number">{{ quote.quote_number }}</div>
+            <div class="quote-date">Date: {{ quote.created_at.strftime('%d %B %Y') }}</div>
+            {% if quote.valid_until %}
+            <div class="quote-date">Valid Until: {{ quote.valid_until.strftime('%d %B %Y') }}</div>
+            {% endif %}
+            <span class="status-badge status-{{ quote.status }}">{{ quote.status }}</span>
+        </div>
+    </div>
+
+    <!-- Customer & Quote To -->
+    <div class="customer-section">
+        <div class="section-box">
+            <h3>Quote To</h3>
+            <div class="content">
+                {% if quote.customer %}
+                <strong>{{ quote.customer.name }}</strong>
+                {% if quote.customer.contact_name %}{{ quote.customer.contact_name }}<br>{% endif %}
+                {% if quote.customer.address %}{{ quote.customer.address }}<br>{% endif %}
+                {% if quote.customer.city %}{{ quote.customer.city }}{% endif %}
+                {% if quote.customer.postcode %} {{ quote.customer.postcode }}{% endif %}
+                {% if quote.customer.email %}<br>{{ quote.customer.email }}{% endif %}
+                {% else %}
+                <span style="color: #999;">No customer selected</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="section-box">
+            <h3>Quote Reference</h3>
+            <div class="content">
+                <strong>{{ quote.quote_number }}</strong>
+                {% if quote.item %}
+                Item: {{ quote.item.sku }}<br>
+                {% endif %}
+                Quantity: {{ "{:,.0f}".format(quote.quantity) }} parts
+                {% if quote.annual_volume %}
+                <br>Annual Volume: {{ "{:,.0f}".format(quote.annual_volume) }} parts
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Description -->
+    <table class="details-table">
+        <thead>
+            <tr>
+                <th colspan="2">Product Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="label">Description</td>
+                <td class="value">{{ quote.description or 'N/A' }}</td>
+            </tr>
+            {% if quote.material_type %}
+            <tr>
+                <td class="label">Material</td>
+                <td class="value">{{ quote.material_type }}</td>
+            </tr>
+            {% endif %}
+            {% if quote.part_weight_g %}
+            <tr>
+                <td class="label">Part Weight</td>
+                <td class="value">{{ quote.part_weight_g }}g</td>
+            </tr>
+            {% endif %}
+            {% if quote.cavities %}
+            <tr>
+                <td class="label">Cavities</td>
+                <td class="value">{{ quote.cavities }}</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- Cost Breakdown (Internal Only) -->
+    {% if show_breakdown %}
+    <div class="cost-breakdown">
+        <h4>⚠️ Internal Cost Breakdown (Do Not Share)</h4>
+        <table>
+            <tr>
+                <td class="label">Material Cost/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.material_cost_per_part or 0) }}</td>
+                <td class="label">Cycle Cost/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.cycle_cost_per_part or 0) }}</td>
+            </tr>
+            <tr>
+                <td class="label">Setup Cost/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.setup_cost_per_part or 0) }}</td>
+                <td class="label">Overhead Cost/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.overhead_cost_per_part or 0) }}</td>
+            </tr>
+            <tr>
+                <td class="label">Secondary Ops/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.secondary_ops_cost or 0) }}</td>
+                <td class="label">Packaging/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.packaging_cost_per_part or 0) }}</td>
+            </tr>
+            <tr style="border-top: 1px solid #f59e0b; font-weight: bold;">
+                <td class="label">Total Cost/Part:</td>
+                <td class="value">£{{ "%.4f"|format(quote.total_cost_per_part or 0) }}</td>
+                <td class="label">Target Margin:</td>
+                <td class="value">{{ quote.target_margin_percent or 30 }}%</td>
+            </tr>
+            <tr>
+                <td class="label">Machine Rate:</td>
+                <td class="value">£{{ "%.2f"|format(quote.machine_rate_per_hour or 0) }}/hr</td>
+                <td class="label">Labour Rate:</td>
+                <td class="value">£{{ "%.2f"|format(quote.labour_rate_per_hour or 0) }}/hr</td>
+            </tr>
+            <tr>
+                <td class="label">Cycle Time:</td>
+                <td class="value">{{ quote.cycle_time_seconds or 0 }}s</td>
+                <td class="label">Material Cost/kg:</td>
+                <td class="value">£{{ "%.2f"|format(quote.material_cost_per_kg or 0) }}</td>
+            </tr>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Pricing -->
+    <div class="pricing-section">
+        <h3>Pricing</h3>
+        <div class="pricing-row">
+            <span class="label">Unit Price</span>
+            <span class="value">£{{ "%.4f"|format(quote.quoted_price_per_part or 0) }} per part</span>
+        </div>
+        <div class="pricing-row">
+            <span class="label">Quantity</span>
+            <span class="value">{{ "{:,.0f}".format(quote.quantity) }} parts</span>
+        </div>
+        {% if quote.tooling_cost and quote.tooling_cost > 0 %}
+        <div class="pricing-row">
+            <span class="label">Tooling Cost</span>
+            <span class="value">£{{ "{:,.2f}".format(quote.tooling_cost) }}</span>
+        </div>
+        {% endif %}
+        <div class="pricing-row total">
+            <span class="label">Total Quote Value</span>
+            <span class="value">£{{ "{:,.2f}".format(quote.quoted_total or 0) }}</span>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    {% if quote.notes %}
+    <div class="notes-section">
+        <h3>Notes</h3>
+        <p>{{ quote.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Internal Notes (Internal Only) -->
+    {% if show_breakdown and quote.internal_notes %}
+    <div class="notes-section" style="background: #fef3c7; padding: 15px; border-radius: 5px;">
+        <h3 style="color: #92400e;">⚠️ Internal Notes (Do Not Share)</h3>
+        <p style="background: transparent;">{{ quote.internal_notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Terms -->
+    <div class="terms">
+        <h4>Terms & Conditions</h4>
+        <ul>
+            <li>Prices quoted are valid for {{ (quote.valid_until - quote.created_at.date()).days if quote.valid_until else 30 }} days from quote date</li>
+            <li>Prices are exclusive of VAT</li>
+            <li>Delivery terms: Ex Works unless otherwise stated</li>
+            <li>Payment terms: {{ quote.customer.payment_terms if quote.customer and quote.customer.payment_terms else 'Net 30 days' }}</li>
+            <li>Tooling remains property of customer, held at ATPM</li>
+            <li>Minimum order quantity may apply</li>
+        </ul>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div>
+            {{ quote.quote_number }} | Generated {{ quote.created_at.strftime('%d/%m/%Y %H:%M') }}
+        </div>
+        <div>
+            ATPM - Advanced Technical Plastic Mouldings
+        </div>
+    </div>
+</body>
+</html>

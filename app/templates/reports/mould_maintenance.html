@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Mould Maintenance{% endblock %}
+{% block mobile_title %}Maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Mould Maintenance</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-tools me-2"></i>Mould Maintenance Due</h1>
+        </div>
+        <button onclick="window.print()" class="btn btn-outline-secondary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ due_moulds|length }}</div>
+                    <div class="stat-label">Overdue</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-clock"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ upcoming_moulds|length }}</div>
+                    <div class="stat-label">Due in 30 Days</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Maintenance -->
+    {% if due_moulds %}
+    <div class="card mb-3">
+        <div class="card-header bg-danger text-white">
+            <i class="bi bi-exclamation-triangle me-1"></i> Maintenance Overdue
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Mould</th>
+                            <th>Name</th>
+                            <th>Last Maintenance</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mould in due_moulds %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('moulds.mould_detail', mould_id=mould.id) }}">
+                                    {{ mould.mould_number }}
+                                </a>
+                            </td>
+                            <td>{{ mould.name or '-' }}</td>
+                            <td>{{ mould.last_maintenance_date.strftime('%d/%m/%Y') if mould.last_maintenance_date else 'Never' }}</td>
+                            <td class="text-danger">{{ mould.next_maintenance_date.strftime('%d/%m/%Y') if mould.next_maintenance_date else '-' }}</td>
+                            <td>
+                                {% if mould.next_maintenance_date %}
+                                <span class="badge bg-danger">{{ (today - mould.next_maintenance_date).days }} days</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('moulds.maintenance_create', mould_id=mould.id) }}" class="btn btn-sm btn-primary">
+                                    Log Maintenance
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Maintenance -->
+    {% if upcoming_moulds %}
+    <div class="card mb-3">
+        <div class="card-header bg-warning">
+            <i class="bi bi-clock me-1"></i> Due Within 30 Days
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Mould</th>
+                            <th>Name</th>
+                            <th>Last Maintenance</th>
+                            <th>Due Date</th>
+                            <th>Days Until Due</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mould in upcoming_moulds %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('moulds.mould_detail', mould_id=mould.id) }}">
+                                    {{ mould.mould_number }}
+                                </a>
+                            </td>
+                            <td>{{ mould.name or '-' }}</td>
+                            <td>{{ mould.last_maintenance_date.strftime('%d/%m/%Y') if mould.last_maintenance_date else 'Never' }}</td>
+                            <td>{{ mould.next_maintenance_date.strftime('%d/%m/%Y') if mould.next_maintenance_date else '-' }}</td>
+                            <td>
+                                {% if mould.next_maintenance_date %}
+                                <span class="badge bg-warning text-dark">{{ (mould.next_maintenance_date - today).days }} days</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('moulds.maintenance_create', mould_id=mould.id) }}" class="btn btn-sm btn-outline-primary">
+                                    Schedule
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not due_moulds and not upcoming_moulds %}
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state py-5">
+                <i class="bi bi-check-circle text-success"></i>
+                <p>No maintenance due at this time</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

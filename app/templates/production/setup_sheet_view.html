@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Sheet - {{ setup_sheet.item.sku }}{% endblock %}
+{% block mobile_title %}Setup Sheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('production.setup_sheet_list') }}">Setup Sheets</a></li>
+                    <li class="breadcrumb-item active">{{ setup_sheet.item.sku }}</li>
+                </ol>
+            </nav>
+            <h1>{{ setup_sheet.item.sku }}</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-outline-secondary">
+                <i class="bi bi-printer"></i>
+            </button>
+            <span class="badge bg-secondary align-self-center">Version {{ setup_sheet.version }}</span>
+        </div>
+    </div>
+
+    <!-- Product & Mould Info -->
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-box me-1"></i> Product Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Item SKU</th>
+                            <td>{{ setup_sheet.item.sku }}</td>
+                        </tr>
+                        <tr>
+                            <th>Item Name</th>
+                            <td>{{ setup_sheet.item.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Program #</th>
+                            <td>{{ setup_sheet.program_number or '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Mould</th>
+                            <td>{{ setup_sheet.mould.mould_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Mould Name</th>
+                            <td>{{ setup_sheet.mould.name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cavities</th>
+                            <td>{{ setup_sheet.mould.num_cavities }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <!-- Temperature Settings -->
+            <div class="card mb-3">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-thermometer-half me-1"></i> Temperatures (C)
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Barrel Zone 1</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.barrel_temp_zone1 or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Barrel Zone 2</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.barrel_temp_zone2 or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Barrel Zone 3</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.barrel_temp_zone3 or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Barrel Zone 4</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.barrel_temp_zone4 or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nozzle</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.nozzle_temp or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Mould</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.mould_temp or '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Material -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-droplet me-1"></i> Material
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Type</th>
+                            <td class="text-end">{{ setup_sheet.material_type or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Grade</th>
+                            <td class="text-end">{{ setup_sheet.material_grade or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Color</th>
+                            <td class="text-end">{{ setup_sheet.color or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Masterbatch</th>
+                            <td class="text-end">{{ setup_sheet.masterbatch_ratio or '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- Process Parameters -->
+            <div class="card mb-3">
+                <div class="card-header bg-warning">
+                    <i class="bi bi-sliders me-1"></i> Process Parameters
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Injection Pressure</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.injection_pressure or '-' }} bar</td>
+                        </tr>
+                        <tr>
+                            <th>Injection Speed</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.injection_speed or '-' }} %</td>
+                        </tr>
+                        <tr>
+                            <th>Injection Time</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.injection_time or '-' }} s</td>
+                        </tr>
+                        <tr>
+                            <th>Holding Pressure</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.holding_pressure or '-' }} bar</td>
+                        </tr>
+                        <tr>
+                            <th>Holding Time</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.holding_time or '-' }} s</td>
+                        </tr>
+                        <tr>
+                            <th>Cooling Time</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.cooling_time or '-' }} s</td>
+                        </tr>
+                        <tr class="table-info">
+                            <th>Cycle Time</th>
+                            <td class="text-end fw-bold">{{ setup_sheet.cycle_time or '-' }} s</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quality Checks -->
+    {% if setup_sheet.quality_checks %}
+    <div class="card mb-3">
+        <div class="card-header bg-info text-white">
+            <i class="bi bi-check2-square me-1"></i> Quality Checks
+        </div>
+        <div class="card-body">
+            <pre class="mb-0" style="white-space: pre-wrap;">{{ setup_sheet.quality_checks }}</pre>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Special Instructions -->
+    {% if setup_sheet.special_instructions %}
+    <div class="card mb-3">
+        <div class="card-header bg-dark text-white">
+            <i class="bi bi-exclamation-triangle me-1"></i> Special Instructions
+        </div>
+        <div class="card-body">
+            <pre class="mb-0" style="white-space: pre-wrap;">{{ setup_sheet.special_instructions }}</pre>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Notes -->
+    {% if setup_sheet.notes %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-sticky me-1"></i> Notes
+        </div>
+        <div class="card-body">
+            {{ setup_sheet.notes }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="text-muted small mt-3">
+        <p class="mb-1">Created: {{ setup_sheet.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        {% if setup_sheet.updated_at %}
+        <p class="mb-0">Last Updated: {{ setup_sheet.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+@media print {
+    .page-header .btn, .breadcrumb { display: none !important; }
+    .card { break-inside: avoid; }
+}
+</style>
+{% endblock %}

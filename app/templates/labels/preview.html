@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Preview Labels{% endblock %}
+{% block mobile_title %}Preview{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('labels.label_list') }}">Labels</a></li>
+                    <li class="breadcrumb-item active">Preview</li>
+                </ol>
+            </nav>
+            <h1>Label Preview</h1>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('labels.label_print') }}" id="printForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-3">
+                    <div class="card-header">Labels to Print</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-center" style="width: 120px;">Qty</th>
+                                        <th class="text-center" style="width: 120px;">Copies</th>
+                                        <th style="width: 200px;">Preview</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="item_ids" value="{{ item.id }}">
+                                            <strong>{{ item.sku }}</strong>
+                                            <br><small class="text-muted">{{ item.name }}</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="number" class="form-control text-center qty-input"
+                                                   name="qty_{{ item.id }}"
+                                                   value="{{ quantities.get(item.id, 1) }}"
+                                                   min="1" data-item-id="{{ item.id }}">
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="number" class="form-control text-center"
+                                                   name="copies_{{ item.id }}" value="1" min="1" max="100">
+                                        </td>
+                                        <td>
+                                            <div class="label-mini-preview" id="preview_{{ item.id }}">
+                                                <div class="label-box">
+                                                    {% if label_format.show_company and company and company.company_name %}
+                                                    <div class="label-company">{{ company.company_name }}</div>
+                                                    {% endif %}
+                                                    {% if label_format.show_name %}
+                                                    <div class="label-name">{{ item.name[:30] }}{% if item.name|length > 30 %}...{% endif %}</div>
+                                                    {% endif %}
+                                                    {% if label_format.show_barcode %}
+                                                    <div class="label-barcode">
+                                                        <img src="" alt="barcode" data-item-id="{{ item.id }}" class="barcode-img">
+                                                    </div>
+                                                    {% endif %}
+                                                    {% if label_format.show_sku %}
+                                                    <div class="label-sku">{{ item.sku }}</div>
+                                                    {% endif %}
+                                                    {% if label_format.show_quantity %}
+                                                    <div class="label-qty">Qty: <span class="qty-display" data-item-id="{{ item.id }}">{{ quantities.get(item.id) if quantities.get(item.id) else '______' }}</span></div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-header">Print Options</div>
+                    <div class="card-body">
+                        <p class="mb-3">
+                            <strong>{{ items|length }}</strong> item(s) selected
+                        </p>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Tip:</strong> Set "Copies" to print multiple labels of the same item.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-printer me-2"></i>Print Labels
+                            </button>
+                            <a href="{{ url_for('labels.label_list') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Selection
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+.label-mini-preview {
+    background: #f8f9fa;
+    padding: 6px;
+    border-radius: 4px;
+}
+
+.label-box {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.label-company {
+    font-weight: bold;
+    font-size: 10px;
+    margin-bottom: 3px;
+    color: #222;
+}
+
+.label-name {
+    font-size: 9px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #444;
+}
+
+.label-barcode {
+    margin: 4px 0;
+}
+
+.label-barcode img {
+    max-width: 100%;
+    height: 28px;
+}
+
+.label-sku {
+    font-size: 9px;
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+
+.label-qty {
+    font-weight: bold;
+    font-size: 11px;
+    margin-top: 4px;
+    background: #222;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 2px;
+    display: inline-block;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load barcodes
+document.querySelectorAll('.barcode-img').forEach(img => {
+    const itemId = img.dataset.itemId;
+    fetch(`{{ url_for('labels.api_barcode', item_id=0) }}`.replace('0', itemId))
+        .then(r => r.json())
+        .then(data => {
+            if (data.data_url) {
+                img.src = data.data_url;
+            }
+        });
+});
+
+// Update quantity display when input changes
+document.querySelectorAll('.qty-input').forEach(input => {
+    input.addEventListener('change', function() {
+        const itemId = this.dataset.itemId;
+        const display = document.querySelector(`.qty-display[data-item-id="${itemId}"]`);
+        if (display) {
+            // Show underline for blank/empty values, otherwise show the number
+            display.textContent = this.value && this.value !== '0' ? this.value : '______';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Receive Stock{% endblock %}
+{% block mobile_title %}Receive Stock{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-box-arrow-in-down me-2"></i>Receive Stock</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventory.receive_stock') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="form-label">Search Item *</label>
+                            <input type="text" class="form-control mb-2" id="itemSearch" placeholder="Type to search by SKU or name...">
+                            <select class="form-select" name="item_id" id="itemSelect" required size="5" style="height: auto;">
+                                <option value="">Select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}" data-unit="{{ item.unit_of_measure }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">{{ item.sku }} - {{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted"><span id="itemCount">{{ items|length }}</span> items</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Location *</label>
+                            <select class="form-select" name="location_id" id="locationSelect" required>
+                                <option value="">Select location...</option>
+                                {% set current_zone = namespace(value='') %}
+                                {% for loc in locations %}
+                                    {% if loc.zone != current_zone.value %}
+                                        {% if current_zone.value != '' %}
+                                        </optgroup>
+                                        {% endif %}
+                                        {% set current_zone.value = loc.zone %}
+                                        <optgroup label="{{ loc.zone or 'Other' }}">
+                                    {% endif %}
+                                    <option value="{{ loc.id }}">{{ loc.code }} - {{ loc.name }}</option>
+                                {% endfor %}
+                                {% if locations %}
+                                </optgroup>
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <div class="input-group" data-quantity-control>
+                                <button type="button" class="btn btn-outline-secondary" data-minus>
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <input type="number" class="form-control text-center" name="quantity" id="quantity" value="1" min="1" step="any" required>
+                                <button type="button" class="btn btn-outline-secondary" data-plus>
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted" id="unitDisplay">units</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Batch Number</label>
+                            <input type="text" class="form-control" name="batch_number" placeholder="Optional">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reference (PO Number)</label>
+                            <input type="text" class="form-control" name="reference" placeholder="Optional">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Optional"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg me-2"></i> Receive Stock
+                            </button>
+                            <a href="{{ url_for('inventory.item_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Scan Option -->
+            <div class="card mt-3">
+                <div class="card-body text-center">
+                    <p class="mb-2">Or scan barcode to select item</p>
+                    <a href="{{ url_for('main.scan') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-upc-scan me-2"></i> Open Scanner
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Item search functionality
+const itemSearch = document.getElementById('itemSearch');
+const itemSelect = document.getElementById('itemSelect');
+const itemCount = document.getElementById('itemCount');
+const allOptions = Array.from(itemSelect.querySelectorAll('option'));
+
+itemSearch.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    let visibleCount = 0;
+
+    allOptions.forEach(option => {
+        if (!option.value) {
+            // Keep the placeholder
+            option.style.display = '';
+            return;
+        }
+
+        const sku = (option.dataset.sku || '').toLowerCase();
+        const name = (option.dataset.name || '').toLowerCase();
+        const text = option.textContent.toLowerCase();
+
+        if (searchTerm === '' || sku.includes(searchTerm) || name.includes(searchTerm) || text.includes(searchTerm)) {
+            option.style.display = '';
+            visibleCount++;
+        } else {
+            option.style.display = 'none';
+        }
+    });
+
+    itemCount.textContent = visibleCount;
+});
+
+// Update unit display when item is selected
+itemSelect.addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    const unit = option.dataset.unit || 'units';
+    document.getElementById('unitDisplay').textContent = unit;
+});
+
+// Focus search on page load
+itemSearch.focus();
+</script>
+{% endblock %}

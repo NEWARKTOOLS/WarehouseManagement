@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}OEE Dashboard{% endblock %}
+{% block mobile_title %}OEE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-speedometer2 me-2"></i>OEE Dashboard</h1>
+            <p class="text-muted mb-0">Overall Equipment Effectiveness - {{ today.strftime('%A, %d %B %Y') }}</p>
+        </div>
+        <a href="{{ url_for('costing.bi_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-graph-up me-1"></i>Business Intelligence
+        </a>
+    </div>
+
+    <!-- Plant OEE Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 {% if plant_oee >= 85 %}border-success{% elif plant_oee >= 60 %}border-warning{% else %}border-danger{% endif %}">
+                <div class="card-body text-center py-4">
+                    <div class="display-3 fw-bold text-{% if plant_oee >= 85 %}success{% elif plant_oee >= 60 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(plant_oee) }}%
+                    </div>
+                    <div class="text-muted">Plant OEE Today</div>
+                    <div class="mt-2">
+                        <span class="badge bg-{% if plant_oee >= 85 %}success{% elif plant_oee >= 60 %}warning{% else %}danger{% endif %}">
+                            {% if plant_oee >= 85 %}World Class{% elif plant_oee >= 60 %}Good{% elif plant_oee >= 40 %}Needs Improvement{% else %}Poor{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-danger bg-opacity-10">
+                    <i class="bi bi-trash me-2"></i>Top Scrap Reasons (This Month)
+                </div>
+                <div class="card-body p-0">
+                    {% if scrap_by_reason %}
+                    <ul class="list-group list-group-flush">
+                        {% for reason, qty in scrap_by_reason %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>{{ reason }}</span>
+                            <strong class="text-danger">{{ qty|int }}</strong>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-3 text-muted">No scrap logged</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <i class="bi bi-clock-history me-2"></i>Top Downtime Reasons (This Month)
+                </div>
+                <div class="card-body p-0">
+                    {% if downtime_by_reason %}
+                    <ul class="list-group list-group-flush">
+                        {% for reason, mins in downtime_by_reason %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>{{ reason }}</span>
+                            <strong class="text-warning">{{ "{:.0f}".format(mins) }} min</strong>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-3 text-muted">No downtime logged</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine OEE Grid -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-cpu me-2"></i>Machine OEE Status
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Machine</th>
+                            <th class="text-center">Today's OEE</th>
+                            <th class="text-center">Availability</th>
+                            <th class="text-center">Performance</th>
+                            <th class="text-center">Quality</th>
+                            <th class="text-center">Week Avg</th>
+                            <th class="text-center">Scrap %</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in machine_oee %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.machine.name }}</strong>
+                                <br><small class="text-muted">{{ item.machine.tonnage }}T</small>
+                            </td>
+                            <td class="text-center">
+                                {% if item.today_log %}
+                                <span class="badge fs-6 bg-{% if item.today_oee >= 85 %}success{% elif item.today_oee >= 60 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(item.today_oee) }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">No data</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.today_log %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{% if item.today_availability >= 90 %}success{% elif item.today_availability >= 70 %}warning{% else %}danger{% endif %}"
+                                         style="width: {{ item.today_availability }}%">
+                                        {{ "{:.0f}".format(item.today_availability) }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.today_log %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{% if item.today_performance >= 95 %}success{% elif item.today_performance >= 80 %}warning{% else %}danger{% endif %}"
+                                         style="width: {{ [item.today_performance, 100]|min }}%">
+                                        {{ "{:.0f}".format(item.today_performance) }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.today_log %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{% if item.today_quality >= 99 %}success{% elif item.today_quality >= 95 %}warning{% else %}danger{% endif %}"
+                                         style="width: {{ item.today_quality }}%">
+                                        {{ "{:.1f}".format(item.today_quality) }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.week_oee > 0 %}
+                                <span class="text-{% if item.week_oee >= 85 %}success{% elif item.week_oee >= 60 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(item.week_oee) }}%
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.week_scrap > 0 %}
+                                <span class="text-{% if item.week_scrap <= 3 %}success{% elif item.week_scrap <= 5 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(item.week_scrap) }}%
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('costing.oee_log_shift', machine_id=item.machine.id) }}" class="btn btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{{ url_for('costing.oee_history', machine_id=item.machine.id) }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-graph-up"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- OEE Explanation -->
+    <div class="card mt-4 border-info">
+        <div class="card-header bg-info bg-opacity-10">
+            <i class="bi bi-info-circle me-2"></i>Understanding OEE
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <h6>OEE = A x P x Q</h6>
+                    <p class="small text-muted mb-0">Overall Equipment Effectiveness is the product of Availability, Performance, and Quality</p>
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <h6>Availability</h6>
+                    <p class="small text-muted mb-0">Operating Time / Planned Time<br>Target: &gt;90%</p>
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <h6>Performance</h6>
+                    <p class="small text-muted mb-0">Actual Output / Theoretical Output<br>Target: &gt;95%</p>
+                </div>
+                <div class="col-md-3">
+                    <h6>Quality</h6>
+                    <p class="small text-muted mb-0">Good Parts / Total Parts<br>Target: &gt;99%</p>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-4">
+                    <span class="badge bg-success">85%+</span> World Class OEE
+                </div>
+                <div class="col-md-4">
+                    <span class="badge bg-warning">60-84%</span> Good, Room for Improvement
+                </div>
+                <div class="col-md-4">
+                    <span class="badge bg-danger">&lt;60%</span> Needs Attention
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

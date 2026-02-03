@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}Scan{% endblock %}
+{% block mobile_title %}Scan Barcode{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-upc-scan me-2"></i>Barcode Scanner</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <!-- Scan Mode Selector -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <label class="form-label fw-bold">Scan Mode</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="scanMode" id="modeLookup" value="lookup" checked>
+                        <label class="btn btn-outline-primary" for="modeLookup">
+                            <i class="bi bi-search"></i> Lookup
+                        </label>
+                        <input type="radio" class="btn-check" name="scanMode" id="modeReceive" value="receive">
+                        <label class="btn btn-outline-primary" for="modeReceive">
+                            <i class="bi bi-box-arrow-in-down"></i> Receive
+                        </label>
+                        <input type="radio" class="btn-check" name="scanMode" id="modeMove" value="move">
+                        <label class="btn btn-outline-primary" for="modeMove">
+                            <i class="bi bi-arrows-move"></i> Move
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Scanner -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="scanner-container mb-3">
+                        <video id="scannerVideo" class="scanner-video" playsinline></video>
+                        <div class="scanner-overlay">
+                            <div class="scanner-frame"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-3">
+                        <button id="startScan" class="btn btn-primary flex-grow-1">
+                            <i class="bi bi-camera"></i> Start Camera
+                        </button>
+                        <button id="stopScan" class="btn btn-outline-secondary" style="display:none;">
+                            <i class="bi bi-stop-circle"></i> Stop
+                        </button>
+                    </div>
+
+                    <!-- Manual Entry -->
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="manualBarcode" placeholder="Or enter barcode/SKU manually">
+                        <button class="btn btn-outline-primary" type="button" id="manualSearch">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan Result -->
+            <div id="scanResult" class="card" style="display:none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span id="resultTitle">Scan Result</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="clearResult">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="card-body" id="resultContent">
+                    <!-- Result content will be inserted here -->
+                </div>
+                <div class="card-footer" id="resultActions">
+                    <!-- Action buttons will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Quick Action Form (shown based on mode) -->
+            <div id="actionForm" class="card" style="display:none;">
+                <div class="card-header" id="actionFormTitle">Action</div>
+                <div class="card-body">
+                    <form id="quickActionForm">
+                        <input type="hidden" id="actionItemId">
+                        <input type="hidden" id="actionFromLocationId">
+
+                        <div id="locationField" class="mb-3" style="display:none;">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" id="actionLocationId">
+                                <option value="">Select location...</option>
+                            </select>
+                        </div>
+
+                        <div id="toLocationField" class="mb-3" style="display:none;">
+                            <label class="form-label">To Location</label>
+                            <select class="form-select" id="actionToLocationId">
+                                <option value="">Select destination...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Quantity</label>
+                            <div class="input-group" data-quantity-control>
+                                <button type="button" class="btn btn-outline-secondary" data-minus>-</button>
+                                <input type="number" class="form-control text-center" id="actionQuantity" value="1" min="0" step="1">
+                                <button type="button" class="btn btn-outline-secondary" data-plus>+</button>
+                            </div>
+                        </div>
+
+                        <div id="batchField" class="mb-3" style="display:none;">
+                            <label class="form-label">Batch Number (optional)</label>
+                            <input type="text" class="form-control" id="actionBatchNumber">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" id="submitAction">
+                            <i class="bi bi-check-circle me-2"></i> Confirm
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- jsQR library for barcode scanning -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('scannerVideo');
+    const startBtn = document.getElementById('startScan');
+    const stopBtn = document.getElementById('stopScan');
+    const manualInput = document.getElementById('manualBarcode');
+    const manualSearchBtn = document.getElementById('manualSearch');
+    const resultCard = document.getElementById('scanResult');
+    const resultContent = document.getElementById('resultContent');
+    const resultActions = document.getElementById('resultActions');
+    const actionForm = document.getElementById('actionForm');
+    const clearResultBtn = document.getElementById('clearResult');
+
+    let scanner = null;
+    let currentItem = null;
+    let locations = [];
+
+    // Load locations
+    fetch('/locations/api/search?q=')
+        .then(r => r.json())
+        .then(data => {
+            locations = data;
+            const selects = ['actionLocationId', 'actionToLocationId'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                locations.forEach(loc => {
+                    const option = document.createElement('option');
+                    option.value = loc.id;
+                    option.textContent = `${loc.code} - ${loc.name}`;
+                    select.appendChild(option);
+                });
+            });
+        });
+
+    // Start scanner
+    startBtn.addEventListener('click', async function() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+            video.srcObject = stream;
+            await video.play();
+
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+
+            // Start scanning loop
+            scanLoop();
+        } catch (err) {
+            alert('Unable to access camera: ' + err.message);
+        }
+    });
+
+    // Stop scanner
+    stopBtn.addEventListener('click', function() {
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+        }
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+    });
+
+    // Scan loop
+    function scanLoop() {
+        if (!video.srcObject) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (code) {
+            processBarcode(code.data);
+            // Pause briefly
+            setTimeout(scanLoop, 2000);
+        } else {
+            requestAnimationFrame(scanLoop);
+        }
+    }
+
+    // Manual search
+    manualSearchBtn.addEventListener('click', function() {
+        const barcode = manualInput.value.trim();
+        if (barcode) {
+            processBarcode(barcode);
+        }
+    });
+
+    manualInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const barcode = this.value.trim();
+            if (barcode) {
+                processBarcode(barcode);
+            }
+        }
+    });
+
+    // Process barcode
+    async function processBarcode(barcode) {
+        const mode = document.querySelector('input[name="scanMode"]:checked').value;
+
+        try {
+            const response = await fetch('/api/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ barcode, context: mode })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                showResult('error', `<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-2"></i>${data.error}: ${barcode}</div>`, []);
+                return;
+            }
+
+            if (data.type === 'item') {
+                currentItem = data;
+                showItemResult(data, mode);
+            } else if (data.type === 'location') {
+                showLocationResult(data);
+            }
+
+        } catch (err) {
+            showResult('error', `<div class="alert alert-danger mb-0">Error: ${err.message}</div>`, []);
+        }
+    }
+
+    // Show item result
+    function showItemResult(item, mode) {
+        let html = `
+            <div class="d-flex align-items-start mb-3">
+                <div class="flex-grow-1">
+                    <h5 class="mb-1">${item.sku}</h5>
+                    <p class="mb-0">${item.name}</p>
+                </div>
+                ${item.is_low_stock ? '<span class="badge bg-danger">Low Stock</span>' : ''}
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <div class="p-2 bg-light rounded">
+                        <small class="text-muted d-block">Total Stock</small>
+                        <strong>${item.total_stock} ${item.unit}</strong>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 bg-light rounded">
+                        <small class="text-muted d-block">Available</small>
+                        <strong>${item.available_stock} ${item.unit}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (item.stock_levels && item.stock_levels.length > 0) {
+            html += '<small class="text-muted">Locations:</small><ul class="list-unstyled mb-0 mt-1">';
+            item.stock_levels.forEach(sl => {
+                html += `<li><i class="bi bi-geo-alt me-1"></i>${sl.location_code}: ${sl.quantity} ${item.unit}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        let actions = `<a href="/inventory/${item.id}" class="btn btn-outline-primary btn-sm">View Details</a>`;
+
+        if (mode === 'receive') {
+            showActionForm('receive', item);
+        } else if (mode === 'move' && item.stock_levels && item.stock_levels.length > 0) {
+            showActionForm('move', item);
+        }
+
+        showResult('Item Found', html, actions);
+    }
+
+    // Show location result
+    function showLocationResult(location) {
+        let html = `
+            <h5 class="mb-1">${location.code}</h5>
+            <p class="text-muted mb-2">${location.name}</p>
+        `;
+
+        if (location.contents && location.contents.length > 0) {
+            html += '<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>SKU</th><th>Name</th><th>Qty</th></tr></thead><tbody>';
+            location.contents.forEach(item => {
+                html += `<tr><td><a href="/inventory/${item.item_id}">${item.sku}</a></td><td>${item.name}</td><td>${item.quantity} ${item.unit}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p class="text-muted mb-0"><i class="bi bi-inbox"></i> Location is empty</p>';
+        }
+
+        showResult('Location', html, `<a href="/locations/${location.id}" class="btn btn-outline-primary btn-sm">View Details</a>`);
+    }
+
+    // Show result card
+    function showResult(title, content, actions) {
+        document.getElementById('resultTitle').textContent = title;
+        resultContent.innerHTML = content;
+        resultActions.innerHTML = actions;
+        resultCard.style.display = 'block';
+    }
+
+    // Show action form
+    function showActionForm(mode, item) {
+        const titleEl = document.getElementById('actionFormTitle');
+        const locationField = document.getElementById('locationField');
+        const toLocationField = document.getElementById('toLocationField');
+        const batchField = document.getElementById('batchField');
+        const submitBtn = document.getElementById('submitAction');
+
+        document.getElementById('actionItemId').value = item.id;
+
+        if (mode === 'receive') {
+            titleEl.textContent = 'Receive Stock';
+            locationField.style.display = 'block';
+            toLocationField.style.display = 'none';
+            batchField.style.display = 'block';
+            submitBtn.textContent = 'Receive';
+        } else if (mode === 'move') {
+            titleEl.textContent = 'Move Stock';
+            locationField.style.display = 'block';
+            locationField.querySelector('label').textContent = 'From Location';
+            toLocationField.style.display = 'block';
+            batchField.style.display = 'none';
+            submitBtn.textContent = 'Move';
+
+            // Pre-fill from location if only one
+            if (item.stock_levels && item.stock_levels.length === 1) {
+                document.getElementById('actionLocationId').value = item.stock_levels[0].location_id;
+            }
+        }
+
+        actionForm.style.display = 'block';
+    }
+
+    // Clear result
+    clearResultBtn.addEventListener('click', function() {
+        resultCard.style.display = 'none';
+        actionForm.style.display = 'none';
+        currentItem = null;
+        manualInput.value = '';
+    });
+
+    // Submit action
+    document.getElementById('quickActionForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const mode = document.querySelector('input[name="scanMode"]:checked').value;
+        const itemId = document.getElementById('actionItemId').value;
+        const quantity = parseFloat(document.getElementById('actionQuantity').value);
+
+        if (quantity <= 0) {
+            alert('Please enter a valid quantity');
+            return;
+        }
+
+        try {
+            let endpoint, body;
+
+            if (mode === 'receive') {
+                const locationId = document.getElementById('actionLocationId').value;
+                const batch = document.getElementById('actionBatchNumber').value;
+
+                if (!locationId) {
+                    alert('Please select a location');
+                    return;
+                }
+
+                endpoint = '/api/quick-receive';
+                body = {
+                    item_id: parseInt(itemId),
+                    location_id: parseInt(locationId),
+                    quantity: quantity,
+                    batch_number: batch
+                };
+            } else if (mode === 'move') {
+                const fromLocationId = document.getElementById('actionLocationId').value;
+                const toLocationId = document.getElementById('actionToLocationId').value;
+
+                if (!fromLocationId || !toLocationId) {
+                    alert('Please select both locations');
+                    return;
+                }
+
+                endpoint = '/api/quick-move';
+                body = {
+                    item_id: parseInt(itemId),
+                    from_location_id: parseInt(fromLocationId),
+                    to_location_id: parseInt(toLocationId),
+                    quantity: quantity
+                };
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(body)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                clearResultBtn.click();
+            } else {
+                alert('Error: ' + result.error);
+            }
+
+        } catch (err) {
+            alert('Error: ' + err.message);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Stock{% endblock %}
+{% block mobile_title %}Adjust Stock{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-pencil-square me-2"></i>Adjust Stock</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventory.adjust_stock') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="form-label">Item *</label>
+                            <select class="form-select" name="item_id" id="itemSelect" required>
+                                <option value="">Select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}">{{ item.sku }} - {{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Location *</label>
+                            <select class="form-select" name="location_id" id="locationSelect" required>
+                                <option value="">Select location...</option>
+                                {% for loc in locations %}
+                                <option value="{{ loc.id }}">{{ loc.code }} - {{ loc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="alert alert-info" id="currentStock" style="display:none;">
+                            Current quantity: <strong id="currentQty">0</strong>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">New Quantity *</label>
+                            <input type="number" class="form-control" name="new_quantity" id="newQuantity" min="0" step="1" required>
+                            <small class="text-muted">Enter the actual counted quantity</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reason for Adjustment *</label>
+                            <select class="form-select" name="reason" required>
+                                <option value="">Select reason...</option>
+                                <option value="Cycle Count">Cycle Count</option>
+                                <option value="Physical Inventory">Physical Inventory</option>
+                                <option value="Damage">Damage</option>
+                                <option value="Loss">Loss</option>
+                                <option value="Found Stock">Found Stock</option>
+                                <option value="Data Correction">Data Correction</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Explain the adjustment..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="bi bi-check-lg me-2"></i> Adjust Stock
+                            </button>
+                            <a href="{{ url_for('inventory.item_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const itemSelect = document.getElementById('itemSelect');
+const locationSelect = document.getElementById('locationSelect');
+const currentStockDiv = document.getElementById('currentStock');
+const currentQtySpan = document.getElementById('currentQty');
+const newQuantityInput = document.getElementById('newQuantity');
+
+async function loadCurrentStock() {
+    const itemId = itemSelect.value;
+    const locationId = locationSelect.value;
+
+    if (!itemId || !locationId) {
+        currentStockDiv.style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/inventory/api/${itemId}/stock`);
+        const data = await response.json();
+
+        const stock = data.stock_levels.find(sl => sl.location_id == locationId);
+        const qty = stock ? stock.quantity : 0;
+
+        currentQtySpan.textContent = qty;
+        currentStockDiv.style.display = 'block';
+        newQuantityInput.value = qty;
+    } catch (err) {
+        currentStockDiv.style.display = 'none';
+    }
+}
+
+itemSelect.addEventListener('change', loadCurrentStock);
+locationSelect.addEventListener('change', loadCurrentStock);
+</script>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Suppliers{% endblock %}
+{% block mobile_title %}Suppliers{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('materials.material_list') }}">Materials</a></li>
+                    <li class="breadcrumb-item active">Suppliers</li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">Material Suppliers</h4>
+        </div>
+        <a href="{{ url_for('materials.supplier_new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Supplier
+        </a>
+    </div>
+
+    <!-- Suppliers List -->
+    <div class="row">
+        {% for supplier in suppliers %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ supplier.name }}</h5>
+                        <span class="badge bg-{{ 'success' if supplier.is_active else 'secondary' }}">
+                            {{ 'Active' if supplier.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+                    {% if supplier.code %}
+                    <p class="text-muted small mb-2">Code: {{ supplier.code }}</p>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        {% if supplier.contact_name %}
+                        <div class="small"><i class="bi bi-person text-muted"></i> {{ supplier.contact_name }}</div>
+                        {% endif %}
+                        {% if supplier.email %}
+                        <div class="small"><i class="bi bi-envelope text-muted"></i> <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a></div>
+                        {% endif %}
+                        {% if supplier.phone %}
+                        <div class="small"><i class="bi bi-telephone text-muted"></i> <a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a></div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-light text-dark">{{ supplier.materials | length }} materials</span>
+                            {% if supplier.lead_time_days %}
+                            <span class="badge bg-light text-dark">{{ supplier.lead_time_days }} day lead</span>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('materials.supplier_edit', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </div>
+                </div>
+                {% if supplier.materials %}
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Materials:</small>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                        {% for m in supplier.materials[:5] %}
+                        <a href="{{ url_for('materials.material_detail', material_id=m.id) }}" class="badge bg-secondary text-decoration-none">{{ m.code }}</a>
+                        {% endfor %}
+                        {% if supplier.materials | length > 5 %}
+                        <span class="badge bg-light text-dark">+{{ supplier.materials | length - 5 }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-building fs-1 text-muted d-block mb-3"></i>
+                    <p class="text-muted mb-3">No suppliers found.</p>
+                    <a href="{{ url_for('materials.supplier_new') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Add First Supplier
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

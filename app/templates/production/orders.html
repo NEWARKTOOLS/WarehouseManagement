@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Production Orders{% endblock %}
+{% block mobile_title %}Production{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-gear me-2"></i>Production Orders</h1>
+        <a href="{{ url_for('production.order_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> New Order
+        </a>
+    </div>
+
+    <!-- Status Tabs -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not status %}active{% endif %}" href="{{ url_for('production.order_list') }}">All</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status == 'planned' %}active{% endif %}" href="{{ url_for('production.order_list', status='planned') }}">Planned</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status == 'in_progress' %}active{% endif %}" href="{{ url_for('production.order_list', status='in_progress') }}">In Progress</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status == 'completed' %}active{% endif %}" href="{{ url_for('production.order_list', status='completed') }}">Completed</a>
+        </li>
+    </ul>
+
+    <!-- Desktop Table -->
+    <div class="card d-none d-md-block">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Item</th>
+                            <th>Machine</th>
+                            <th class="text-end">Qty Required</th>
+                            <th class="text-end">Produced</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('production.order_detail', order_id=order.id) }}">
+                                    <strong>{{ order.order_number }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                {{ order.item.sku }}<br>
+                                <small class="text-muted">{{ order.item.name }}</small>
+                            </td>
+                            <td>{{ order.machine.name if order.machine else '-' }}</td>
+                            <td class="text-end">{{ order.quantity_required|int }}</td>
+                            <td class="text-end">
+                                {{ order.quantity_produced|int }}
+                                <div class="progress" style="width: 60px; height: 4px;">
+                                    <div class="progress-bar" style="width: {{ order.completion_percentage }}%"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ order.status }}">
+                                    {{ order.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>{{ order.due_date.strftime('%d/%m/%Y') if order.due_date else '-' }}</td>
+                            <td class="text-end">
+                                {% if order.status == 'planned' %}
+                                <a href="{{ url_for('production.order_detail', order_id=order.id) }}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-play"></i> Start
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No production orders found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="d-md-none mobile-card-list">
+        {% for order in orders %}
+        <a href="{{ url_for('production.order_detail', order_id=order.id) }}" class="card text-decoration-none text-dark">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="item-title">{{ order.order_number }}</div>
+                    <div class="item-subtitle">{{ order.item.sku }} - {{ order.item.name }}</div>
+                </div>
+                <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+            </div>
+            <div class="item-meta">
+                <span><i class="bi bi-bullseye me-1"></i>{{ order.quantity_produced|int }}/{{ order.quantity_required|int }}</span>
+                <span><i class="bi bi-calendar me-1"></i>{{ order.due_date.strftime('%d/%m') if order.due_date else 'No date' }}</span>
+            </div>
+        </a>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-gear"></i>
+            <p>No production orders</p>
+            <a href="{{ url_for('production.order_create') }}" class="btn btn-primary">Create Order</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Shop Floor{% endblock %}
+{% block mobile_title %}Shop Floor{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2">
+    <!-- Large Clock and Date -->
+    <div class="text-center mb-3 py-2 bg-dark text-white rounded">
+        <div class="display-4 fw-bold" id="currentTime">--:--</div>
+        <div class="text-muted">{{ today.strftime('%A, %d %B %Y') }}</div>
+    </div>
+
+    <!-- Machine Selection -->
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white py-2">
+            <i class="bi bi-cpu me-2"></i>Select Your Machine
+        </div>
+        <div class="card-body p-2">
+            <div class="row g-2">
+                {% for machine in machines %}
+                <div class="col-6 col-md-4">
+                    <a href="{{ url_for('scheduling.technician_machine', machine_id=machine.id) }}"
+                       class="btn btn-lg w-100 py-3 machine-btn machine-{{ machine.status }}">
+                        {% if machine.status == 'running' %}
+                        <i class="bi bi-play-circle-fill text-success d-block fs-2"></i>
+                        {% elif machine.status == 'idle' %}
+                        <i class="bi bi-pause-circle d-block fs-2 text-secondary"></i>
+                        {% elif machine.status == 'maintenance' %}
+                        <i class="bi bi-wrench d-block fs-2 text-warning"></i>
+                        {% else %}
+                        <i class="bi bi-x-circle d-block fs-2 text-danger"></i>
+                        {% endif %}
+                        <span class="fw-bold">{{ machine.name }}</span>
+                        <small class="d-block text-muted">{{ machine.tonnage }}T</small>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sorting Queue Alert -->
+    {% if sorting_count > 0 %}
+    <a href="{{ url_for('scheduling.sorting_queue') }}" class="card mb-3 text-decoration-none border-warning">
+        <div class="card-body bg-warning bg-opacity-10 d-flex align-items-center py-3">
+            <i class="bi bi-inbox fs-1 text-warning me-3"></i>
+            <div>
+                <h5 class="mb-0 text-dark">{{ sorting_count }} Item{{ 's' if sorting_count != 1 else '' }} Awaiting Sorting</h5>
+                <small class="text-muted">Tap to view sorting queue</small>
+            </div>
+            <i class="bi bi-chevron-right ms-auto text-muted fs-4"></i>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <a href="{{ url_for('main.scan') }}" class="btn btn-outline-primary btn-lg w-100 py-3">
+                <i class="bi bi-upc-scan d-block fs-2"></i>
+                Scan Barcode
+            </a>
+        </div>
+        <div class="col-6">
+            <a href="{{ url_for('scheduling.sorting_queue') }}" class="btn btn-outline-warning btn-lg w-100 py-3">
+                <i class="bi bi-inbox d-block fs-2"></i>
+                Sorting Queue
+            </a>
+        </div>
+        <div class="col-6">
+            <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-outline-success btn-lg w-100 py-3">
+                <i class="bi bi-calendar3 d-block fs-2"></i>
+                View Schedule
+            </a>
+        </div>
+        <div class="col-6">
+            <a href="{{ url_for('moulds.mould_list') }}" class="btn btn-outline-secondary btn-lg w-100 py-3">
+                <i class="bi bi-box d-block fs-2"></i>
+                Moulds
+            </a>
+        </div>
+    </div>
+
+    <!-- Today's Jobs Summary -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-calendar-day me-2"></i>Today's Jobs
+        </div>
+        <div class="card-body p-0">
+            {% if todays_jobs %}
+            <div class="list-group list-group-flush">
+                {% for job in todays_jobs[:10] %}
+                <div class="list-group-item {% if job.status == 'in_progress' %}bg-success bg-opacity-10{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-{{ 'success' if job.status == 'in_progress' else 'secondary' }} me-2">
+                                {{ job.machine.name if job.machine else '?' }}
+                            </span>
+                            <strong>{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</strong>
+                        </div>
+                        <span class="badge bg-{{ job.urgency_class }}">
+                            {{ job.production_order.quantity_required|int if job.production_order else 0 }} pcs
+                        </span>
+                    </div>
+                    <small class="text-muted">{{ job.production_order.item.name if job.production_order and job.production_order.item else '' }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                No jobs scheduled for today
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.machine-btn {
+    border: 2px solid #dee2e6;
+    background: white;
+    transition: all 0.2s ease;
+}
+.machine-btn:hover {
+    transform: scale(1.02);
+}
+.machine-btn.machine-running {
+    border-color: #198754;
+    background: rgba(25, 135, 84, 0.05);
+}
+.machine-btn.machine-idle {
+    border-color: #6c757d;
+}
+.machine-btn.machine-maintenance {
+    border-color: #ffc107;
+    background: rgba(255, 193, 7, 0.1);
+}
+</style>
+
+<script>
+// Update clock every second
+function updateClock() {
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+    document.getElementById('currentTime').textContent = time;
+}
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+{% endblock %}

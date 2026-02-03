@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mould.mould_number }}{% endblock %}
+{% block mobile_title %}{{ mould.mould_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('moulds.mould_list') }}">Moulds</a></li>
+                    <li class="breadcrumb-item active">{{ mould.mould_number }}</li>
+                </ol>
+            </nav>
+            <h1>{{ mould.name or mould.mould_number }}</h1>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="status-badge status-{{ mould.status }}">{{ mould.status|replace('_', ' ')|title }}</span>
+            <a href="{{ url_for('moulds.mould_edit', mould_id=mould.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+        </div>
+    </div>
+
+    {% if mould.status == 'awaiting_repair' %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span>
+            <i class="bi bi-tools me-2"></i>
+            <strong>Awaiting Repair</strong> - This mould has been flagged for repair.
+        </span>
+        <form method="POST" action="{{ url_for('moulds.set_status', mould_id=mould.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="status" value="available">
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="bi bi-check-circle me-1"></i> Mark as Repaired
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if mould.is_maintenance_due %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Maintenance Overdue!</strong> Last PM was {{ mould.last_maintenance_date.strftime('%d/%m/%Y') if mould.last_maintenance_date else 'never' }}.
+        <a href="{{ url_for('moulds.record_maintenance', mould_id=mould.id) }}" class="alert-link">Record maintenance</a>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Report Issue (Mobile-friendly) -->
+            <div class="card mb-3">
+                <div class="card-header">Report Issue</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('moulds.report_issue', mould_id=mould.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <select class="form-select" name="issue_type" required>
+                                    <option value="">Select issue...</option>
+                                    <option value="flash">Flash</option>
+                                    <option value="short_shot">Short Shot</option>
+                                    <option value="ejection">Ejection Issue</option>
+                                    <option value="cooling">Cooling Problem</option>
+                                    <option value="damage">Physical Damage</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="description" placeholder="Describe the issue..." required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-warning w-100">
+                                    <i class="bi bi-flag"></i> Report
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Maintenance Log -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Maintenance History</span>
+                    <a href="{{ url_for('moulds.record_maintenance', mould_id=mould.id) }}" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus"></i> Record PM
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if maintenance_logs %}
+                    <div class="list-group list-group-flush">
+                        {% for log in maintenance_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    <span class="badge bg-{{ 'success' if log.maintenance_type == 'pm' else 'warning' if log.maintenance_type == 'repair' else 'info' }}">
+                                        {{ log.maintenance_type|upper }}
+                                    </span>
+                                    {{ log.description or 'Scheduled maintenance' }}
+                                </span>
+                                <small class="text-muted">{{ log.created_at.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                            {% if log.work_performed %}
+                            <small class="text-muted">{{ log.work_performed }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <p>No maintenance history</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Production -->
+            <div class="card mb-3">
+                <div class="card-header">Recent Production</div>
+                <div class="card-body p-0">
+                    {% if recent_production %}
+                    <div class="list-group list-group-flush">
+                        {% for order in recent_production %}
+                        <a href="{{ url_for('production.order_detail', order_id=order.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    <strong>{{ order.order_number }}</strong> - {{ order.item.sku }}
+                                </span>
+                                <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <p>No recent production</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Mould Details -->
+            <div class="card mb-3">
+                <div class="card-header">Specifications</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Mould #</th>
+                            <td>{{ mould.mould_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Type</th>
+                            <td>{{ mould.mould_type|title }}</td>
+                        </tr>
+                        {% if mould.bolster_number %}
+                        <tr>
+                            <th>Bolster</th>
+                            <td>{{ mould.bolster_number }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Tonnage</th>
+                            <td>{{ mould.tonnage_required or '-' }}T</td>
+                        </tr>
+                        <tr>
+                            <th>Cavities</th>
+                            <td>{{ mould.num_cavities }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cycle Time</th>
+                            <td>{{ mould.cycle_time_seconds or '-' }}s</td>
+                        </tr>
+                        <tr>
+                            <th>Materials</th>
+                            <td>{{ mould.material_compatibility or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Storage</th>
+                            <td>{{ mould.storage_location or '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Maintenance Schedule -->
+            <div class="card mb-3">
+                <div class="card-header">Maintenance</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Interval</th>
+                            <td>{{ mould.maintenance_interval_months }} months</td>
+                        </tr>
+                        <tr>
+                            <th>Last PM</th>
+                            <td>{{ mould.last_maintenance_date.strftime('%d/%m/%Y') if mould.last_maintenance_date else 'Never' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Next PM</th>
+                            <td class="{% if mould.is_maintenance_due %}text-danger fw-bold{% endif %}">
+                                {{ mould.next_maintenance_date.strftime('%d/%m/%Y') if mould.next_maintenance_date else '-' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Total Shots</th>
+                            <td>{{ "{:,}".format(mould.total_shots) }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if mould.notes %}
+            <div class="card mb-3">
+                <div class="card-header">Notes</div>
+                <div class="card-body">{{ mould.notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

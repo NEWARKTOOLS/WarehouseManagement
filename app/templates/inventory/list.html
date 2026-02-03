@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory{% endblock %}
+{% block mobile_title %}Inventory{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-box me-2"></i>Inventory</h1>
+        <a href="{{ url_for('inventory.item_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add Item
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('inventory.item_list') }}">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <div class="search-box">
+                            <i class="bi bi-search search-icon"></i>
+                            <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search SKU, name, barcode...">
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <select class="form-select" name="customer" data-auto-submit>
+                            <option value="">All Customers</option>
+                            {% for cust in customers %}
+                            <option value="{{ cust.id }}" {% if cust.id == customer_id %}selected{% endif %}>{{ cust.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <select class="form-select" name="type" data-auto-submit>
+                            <option value="">All Types</option>
+                            <option value="raw_material" {% if item_type == 'raw_material' %}selected{% endif %}>Raw Material</option>
+                            <option value="masterbatch" {% if item_type == 'masterbatch' %}selected{% endif %}>Masterbatch</option>
+                            <option value="finished_goods" {% if item_type == 'finished_goods' %}selected{% endif %}>Finished Goods</option>
+                            <option value="regrind" {% if item_type == 'regrind' %}selected{% endif %}>Regrind</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="form-check form-switch pt-2">
+                            <input class="form-check-input" type="checkbox" name="low_stock" value="true" id="lowStock" {% if low_stock == 'true' %}checked{% endif %} onchange="this.form.submit()">
+                            <label class="form-check-label" for="lowStock">Low Stock Only</label>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="card d-none d-md-block">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th class="text-end">Stock</th>
+                            <th class="text-end">Value</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items_list %}
+                            {% for item in items_list %}
+                            <tr>
+                                <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}"><strong>{{ item.sku }}</strong></a></td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.item_type|replace('_', ' ')|title if item.item_type else '-' }}</td>
+                                <td class="text-end {% if item.is_low_stock %}low-stock{% endif %}">
+                                    {{ item.total_stock }} {{ item.unit_of_measure }}
+                                </td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(item.total_stock * (item.unit_cost or 0)) }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <a href="{{ url_for('inventory.item_edit', item_id=item.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        {% if current_user.is_admin() %}
+                                        <form method="POST" action="{{ url_for('inventory.item_delete', item_id=item.id) }}" class="d-inline"
+                                              onsubmit="return confirm('DELETE {{ item.sku }}?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% elif items %}
+                            {% for item in items.items %}
+                            <tr>
+                                <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}"><strong>{{ item.sku }}</strong></a></td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.item_type|replace('_', ' ')|title if item.item_type else '-' }}</td>
+                                <td class="text-end {% if item.is_low_stock %}low-stock{% endif %}">
+                                    {{ item.total_stock }} {{ item.unit_of_measure }}
+                                </td>
+                                <td class="text-end">&pound;{{ "{:,.2f}".format(item.total_stock * (item.unit_cost or 0)) }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <a href="{{ url_for('inventory.item_edit', item_id=item.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        {% if current_user.is_admin() %}
+                                        <form method="POST" action="{{ url_for('inventory.item_delete', item_id=item.id) }}" class="d-inline"
+                                              onsubmit="return confirm('DELETE {{ item.sku }}?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No items found</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No items found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="d-md-none mobile-card-list">
+        {% if items_list %}
+            {% for item in items_list %}
+            <a href="{{ url_for('inventory.item_detail', item_id=item.id) }}" class="card text-decoration-none text-dark">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="item-title">{{ item.sku }}</div>
+                        <div class="item-subtitle">{{ item.name }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="{% if item.is_low_stock %}low-stock{% endif %}">{{ item.total_stock }} {{ item.unit_of_measure }}</div>
+                        {% if item.is_low_stock %}<span class="badge bg-danger">Low</span>{% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        {% elif items %}
+            {% for item in items.items %}
+            <a href="{{ url_for('inventory.item_detail', item_id=item.id) }}" class="card text-decoration-none text-dark">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="item-title">{{ item.sku }}</div>
+                        <div class="item-subtitle">{{ item.name }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="{% if item.is_low_stock %}low-stock{% endif %}">{{ item.total_stock }} {{ item.unit_of_measure }}</div>
+                        {% if item.is_low_stock %}<span class="badge bg-danger">Low</span>{% endif %}
+                    </div>
+                </div>
+            </a>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-box"></i>
+                <p>No items found</p>
+                <a href="{{ url_for('inventory.item_create') }}" class="btn btn-primary">Add First Item</a>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if items and items.pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if items.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('inventory.item_list', page=items.prev_num, search=search, customer=customer_id, type=item_type) }}">Previous</a>
+            </li>
+            {% endif %}
+
+            {% for page_num in items.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == items.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('inventory.item_list', page=page_num, search=search, customer=customer_id, type=item_type) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if items.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('inventory.item_list', page=items.next_num, search=search, customer=customer_id, type=item_type) }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

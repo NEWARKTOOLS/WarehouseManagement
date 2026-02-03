@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-person-circle me-2"></i>My Profile</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <!-- Profile Picture -->
+                        <div class="text-center mb-4">
+                            {% if current_user.avatar_filename %}
+                            <img src="{{ url_for('static', filename='uploads/' + current_user.avatar_filename) }}"
+                                 class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;" alt="Profile">
+                            {% else %}
+                            <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 120px; height: 120px;">
+                                <i class="bi bi-person-fill text-white" style="font-size: 60px;"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <label class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-camera me-1"></i> Change Photo
+                                    <input type="file" name="avatar" accept="image/*" class="d-none" onchange="this.form.submit()">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" value="{{ current_user.username }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Role</label>
+                                <input type="text" class="form-control" value="{{ current_user.role|title }}" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">First Name</label>
+                                <input type="text" class="form-control" name="first_name" value="{{ current_user.first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" class="form-control" name="last_name" value="{{ current_user.last_name or '' }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" value="{{ current_user.email }}">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h5>Change Password</h5>
+                        <p class="text-muted small">Leave blank to keep current password</p>
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Current Password</label>
+                                <input type="password" class="form-control" name="current_password">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">New Password</label>
+                                <input type="password" class="form-control" name="new_password">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" name="confirm_password">
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Check Stock - {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-box-seam me-2"></i>Stock Check</h1>
+            <p class="text-muted mb-0">Order {{ order.order_number }} - {{ order.customer.name }}</p>
+        </div>
+        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Order
+        </a>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card {% if all_in_stock %}border-success{% else %}border-warning{% endif %}">
+                <div class="card-body">
+                    {% if all_in_stock %}
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill text-success fs-1 me-3"></i>
+                        <div>
+                            <h5 class="mb-0 text-success">All Items In Stock</h5>
+                            <p class="mb-0 text-muted">Order can be shipped immediately</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-1 me-3"></i>
+                        <div>
+                            <h5 class="mb-0 text-warning">Stock Shortfall</h5>
+                            <p class="mb-0 text-muted">{{ total_shortfall|int }} items need to be produced</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if order.required_date %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    {% set days_until = (order.required_date - today).days if order.required_date else 999 %}
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-calendar-event fs-1 me-3 text-{{ 'danger' if days_until <= 2 else 'warning' if days_until <= 5 else 'primary' }}"></i>
+                        <div>
+                            <h5 class="mb-0">Required: {{ order.required_date.strftime('%d/%m/%Y') }}</h5>
+                            <p class="mb-0 text-{{ 'danger' if days_until <= 2 else 'warning' if days_until <= 5 else 'muted' }}">
+                                {% if days_until < 0 %}{{ -days_until }} days overdue!
+                                {% elif days_until == 0 %}Due TODAY!
+                                {% elif days_until == 1 %}Due tomorrow
+                                {% else %}{{ days_until }} days remaining
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Stock Details Table -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-list-check me-2"></i>Line Items Stock Status
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>SKU</th>
+                            <th>Item</th>
+                            <th class="text-end">Required</th>
+                            <th class="text-end">In Stock</th>
+                            <th class="text-end">Shortfall</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock_status %}
+                        <tr class="{% if item.status == 'short' %}table-warning{% elif item.status == 'ok' %}table-success{% endif %}">
+                            <td>
+                                {% if item.item %}
+                                <a href="{{ url_for('inventory.item_detail', item_id=item.item.id) }}">{{ item.sku }}</a>
+                                {% else %}
+                                {{ item.sku }}
+                                {% endif %}
+                            </td>
+                            <td>{{ item.name }}</td>
+                            <td class="text-end">{{ item.required|int }}</td>
+                            <td class="text-end">
+                                {% if item.available is not none %}
+                                {{ item.available|int }}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if item.shortfall > 0 %}
+                                <span class="text-danger fw-bold">{{ item.shortfall|int }}</span>
+                                {% else %}
+                                <span class="text-success">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.status == 'custom' %}
+                                <span class="badge bg-secondary">Custom Item</span>
+                                {% elif item.status == 'ok' %}
+                                <span class="badge bg-success"><i class="bi bi-check"></i> In Stock</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Needs Production</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                {% if all_in_stock %}
+                <form action="{{ url_for('orders.update_status', order_id=order.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="status" value="ready_to_ship">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-circle me-2"></i>Mark Ready to Ship
+                    </button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('orders.process_order', order_id=order.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-gear me-2"></i>Create Production Orders
+                    </button>
+                </form>
+                <p class="text-muted mb-0 ms-3 align-self-center">
+                    This will automatically create production orders for items with shortfalls
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Production Orders -->
+    {% if order.production_orders.count() > 0 %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <i class="bi bi-gear me-2"></i>Linked Production Orders
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order #</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po in order.production_orders %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('production.order_detail', order_id=po.id) }}">{{ po.order_number }}</a>
+                            </td>
+                            <td>{{ po.item.sku if po.item else 'N/A' }} - {{ po.item.name if po.item else '' }}</td>
+                            <td>{{ po.quantity_required|int }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if po.status == 'completed' else 'warning' if po.status == 'in_progress' else 'secondary' }}">
+                                    {{ po.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar" style="width: {{ po.completion_percentage }}%">
+                                        {{ po.completion_percentage|round|int }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% set today = import_datetime.date.today() if import_datetime else none %}
+{% endblock %}

@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if setup_sheet else 'New' }} Setup Sheet{% endblock %}
+{% block mobile_title %}Setup Sheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('production.setup_sheet_list') }}">Setup Sheets</a></li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if setup_sheet else 'New' }}</li>
+                </ol>
+            </nav>
+            <h1>{{ 'Edit Setup Sheet' if setup_sheet else 'New Setup Sheet' }}</h1>
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Item & Mould Selection -->
+        <div class="card mb-3">
+            <div class="card-header">Product & Mould</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Item/Product *</label>
+                        <select class="form-select" name="item_id" required>
+                            <option value="">Select Item</option>
+                            {% for item in items %}
+                            <option value="{{ item.id }}" {{ 'selected' if setup_sheet and setup_sheet.item_id == item.id }}>
+                                {{ item.sku }} - {{ item.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Mould *</label>
+                        <select class="form-select" name="mould_id" required>
+                            <option value="">Select Mould</option>
+                            {% for mould in moulds %}
+                            <option value="{{ mould.id }}" {{ 'selected' if setup_sheet and setup_sheet.mould_id == mould.id }}>
+                                {{ mould.mould_number }} - {{ mould.name or 'N/A' }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Program Number</label>
+                        <input type="text" class="form-control" name="program_number"
+                               value="{{ setup_sheet.program_number if setup_sheet else '' }}"
+                               placeholder="Machine program #">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Temperature Settings -->
+        <div class="card mb-3">
+            <div class="card-header">Temperature Settings (C)</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Barrel Z1</label>
+                        <input type="number" step="1" class="form-control" name="barrel_temp_zone1"
+                               value="{{ setup_sheet.barrel_temp_zone1 if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Barrel Z2</label>
+                        <input type="number" step="1" class="form-control" name="barrel_temp_zone2"
+                               value="{{ setup_sheet.barrel_temp_zone2 if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Barrel Z3</label>
+                        <input type="number" step="1" class="form-control" name="barrel_temp_zone3"
+                               value="{{ setup_sheet.barrel_temp_zone3 if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Barrel Z4</label>
+                        <input type="number" step="1" class="form-control" name="barrel_temp_zone4"
+                               value="{{ setup_sheet.barrel_temp_zone4 if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Nozzle</label>
+                        <input type="number" step="1" class="form-control" name="nozzle_temp"
+                               value="{{ setup_sheet.nozzle_temp if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Mould</label>
+                        <input type="number" step="1" class="form-control" name="mould_temp"
+                               value="{{ setup_sheet.mould_temp if setup_sheet else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Parameters -->
+        <div class="card mb-3">
+            <div class="card-header">Process Parameters</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Injection Pressure (bar)</label>
+                        <input type="number" step="0.1" class="form-control" name="injection_pressure"
+                               value="{{ setup_sheet.injection_pressure if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Injection Speed (%)</label>
+                        <input type="number" step="0.1" class="form-control" name="injection_speed"
+                               value="{{ setup_sheet.injection_speed if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Injection Time (s)</label>
+                        <input type="number" step="0.1" class="form-control" name="injection_time"
+                               value="{{ setup_sheet.injection_time if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Holding Pressure (bar)</label>
+                        <input type="number" step="0.1" class="form-control" name="holding_pressure"
+                               value="{{ setup_sheet.holding_pressure if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Holding Time (s)</label>
+                        <input type="number" step="0.1" class="form-control" name="holding_time"
+                               value="{{ setup_sheet.holding_time if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Cooling Time (s)</label>
+                        <input type="number" step="0.1" class="form-control" name="cooling_time"
+                               value="{{ setup_sheet.cooling_time if setup_sheet else '' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Cycle Time (s)</label>
+                        <input type="number" step="0.1" class="form-control" name="cycle_time"
+                               value="{{ setup_sheet.cycle_time if setup_sheet else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Material -->
+        <div class="card mb-3">
+            <div class="card-header">Material</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Material Type</label>
+                        <input type="text" class="form-control" name="material_type"
+                               value="{{ setup_sheet.material_type if setup_sheet else '' }}"
+                               placeholder="e.g., PP, ABS, PA66">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Material Grade</label>
+                        <input type="text" class="form-control" name="material_grade"
+                               value="{{ setup_sheet.material_grade if setup_sheet else '' }}"
+                               placeholder="e.g., Sabic 83MF10">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Color</label>
+                        <input type="text" class="form-control" name="color"
+                               value="{{ setup_sheet.color if setup_sheet else '' }}"
+                               placeholder="e.g., Black, Natural">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Masterbatch Ratio</label>
+                        <input type="text" class="form-control" name="masterbatch_ratio"
+                               value="{{ setup_sheet.masterbatch_ratio if setup_sheet else '' }}"
+                               placeholder="e.g., 2%">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quality & Notes -->
+        <div class="card mb-3">
+            <div class="card-header">Quality Checks & Notes</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Quality Checks</label>
+                        <textarea class="form-control" name="quality_checks" rows="3"
+                                  placeholder="List quality check points...">{{ setup_sheet.quality_checks if setup_sheet else '' }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Special Instructions</label>
+                        <textarea class="form-control" name="special_instructions" rows="3"
+                                  placeholder="Any special setup or running instructions...">{{ setup_sheet.special_instructions if setup_sheet else '' }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ setup_sheet.notes if setup_sheet else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i> Save Setup Sheet
+            </button>
+            <a href="{{ url_for('production.setup_sheet_list') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

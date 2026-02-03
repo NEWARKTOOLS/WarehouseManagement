@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  wms:
+    build: .
+    container_name: wms-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist database, uploads, and barcodes (all in instance folder)
+      - wms_data:/app/instance
+    environment:
+      - FLASK_CONFIG=production
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-secret-key}
+      # Uncomment below if you want to use PostgreSQL instead of SQLite
+      # - DATABASE_URL=postgresql://wms:wms_password@db:5432/wms
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/auth/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  wms_data:
+
+# Optional: Add PostgreSQL for better performance with multiple users
+# Uncomment below if needed:
+#
+#  db:
+#    image: postgres:15-alpine
+#    container_name: wms-db
+#    restart: unless-stopped
+#    environment:
+#      - POSTGRES_USER=wms
+#      - POSTGRES_PASSWORD=wms_password
+#      - POSTGRES_DB=wms
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#
+#volumes:
+#  postgres_data:

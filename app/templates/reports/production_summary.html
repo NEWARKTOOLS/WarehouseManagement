@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Production Summary Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Production Summary</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-gear me-2"></i>Production Summary</h1>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-2">
+                <div class="col-5 col-md-3">
+                    <label class="form-label small">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-5 col-md-3">
+                    <label class="form-label small">End Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-2 col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ totals.orders }}</div>
+                    <div class="stat-label">Jobs Completed</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-box"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ "{:,.0f}".format(totals.produced) }}</div>
+                    <div class="stat-label">Total Produced</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ "{:,.0f}".format(totals.good) }}</div>
+                    <div class="stat-label">Good Parts</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ "{:,.0f}".format(totals.rejected) }}</div>
+                    <div class="stat-label">Rejected</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production by Item -->
+    <div class="card">
+        <div class="card-header">
+            Production by Item
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th class="text-end">Jobs</th>
+                            <th class="text-end">Produced</th>
+                            <th class="text-end">Good</th>
+                            <th class="text-end">Rejected</th>
+                            <th class="text-end">Yield %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in production_data %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('inventory.item_detail', item_id=data.item.id) }}">
+                                    <strong>{{ data.item.sku }}</strong>
+                                </a>
+                                <br><small class="text-muted">{{ data.item.description or '' }}</small>
+                            </td>
+                            <td class="text-end">{{ data.order_count }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(data.total_produced) }}</td>
+                            <td class="text-end text-success">{{ "{:,.0f}".format(data.total_good) }}</td>
+                            <td class="text-end text-danger">{{ "{:,.0f}".format(data.total_rejected) }}</td>
+                            <td class="text-end">
+                                {% set yield_pct = (data.total_good / data.total_produced * 100) if data.total_produced > 0 else 0 %}
+                                <span class="{% if yield_pct >= 95 %}text-success{% elif yield_pct >= 90 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ "{:.1f}".format(yield_pct) }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No completed production in this period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if production_data %}
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Total</th>
+                            <th class="text-end">{{ totals.orders }}</th>
+                            <th class="text-end">{{ "{:,.0f}".format(totals.produced) }}</th>
+                            <th class="text-end">{{ "{:,.0f}".format(totals.good) }}</th>
+                            <th class="text-end">{{ "{:,.0f}".format(totals.rejected) }}</th>
+                            <th class="text-end">
+                                {% set total_yield = (totals.good / totals.produced * 100) if totals.produced > 0 else 0 %}
+                                {{ "{:.1f}".format(total_yield) }}%
+                            </th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block mobile_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-gear me-2"></i>Settings</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('settings.company') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Company Details</h5>
+                            <p class="text-muted mb-0">Name, address, contact info</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('auth.user_list') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon success">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Users</h5>
+                            <p class="text-muted mb-0">Manage user accounts</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('inventory.category_list') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-folder"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Categories</h5>
+                            <p class="text-muted mb-0">Inventory categories</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('production.machine_list') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon danger">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Machines</h5>
+                            <p class="text-muted mb-0">Production equipment</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('locations.bulk_create') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon info">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Locations</h5>
+                            <p class="text-muted mb-0">Bulk create storage locations</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('settings.labels') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon secondary">
+                            <i class="bi bi-upc"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Label Format</h5>
+                            <p class="text-muted mb-0">Configure label printing</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('settings.packing_list') }}" class="card h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Packing List</h5>
+                            <p class="text-muted mb-0">Customize packing list template</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <a href="{{ url_for('data_management.index') }}" class="card h-100 text-decoration-none border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon success">
+                            <i class="bi bi-cloud-arrow-up-down"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">Data Management</h5>
+                            <p class="text-muted mb-0">Import, export & backup data</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Company Info Preview -->
+    {% if settings.company_name %}
+    <div class="card mt-4">
+        <div class="card-header">Current Company Info</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    {% if settings.logo_filename %}
+                    <img src="{{ url_for('static', filename='img/' + settings.logo_filename) }}" alt="Logo" class="mb-3" style="max-height: 60px;">
+                    <br>
+                    {% endif %}
+                    <strong>{{ settings.company_name }}</strong>
+                    {% if settings.trading_name and settings.trading_name != settings.company_name %}
+                    <br>t/a {{ settings.trading_name }}
+                    {% endif %}
+                    <br>{{ settings.address_line1 or '' }}
+                    {% if settings.address_line2 %}<br>{{ settings.address_line2 }}{% endif %}
+                    <br>{{ settings.city or '' }} {{ settings.postcode or '' }}
+                </div>
+                <div class="col-md-6">
+                    {% if settings.phone %}<p class="mb-1"><i class="bi bi-telephone me-2"></i>{{ settings.phone }}</p>{% endif %}
+                    {% if settings.email %}<p class="mb-1"><i class="bi bi-envelope me-2"></i>{{ settings.email }}</p>{% endif %}
+                    {% if settings.vat_number %}<p class="mb-1"><strong>VAT:</strong> {{ settings.vat_number }}</p>{% endif %}
+                    {% if settings.company_number %}<p class="mb-0"><strong>Co. No:</strong> {{ settings.company_number }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

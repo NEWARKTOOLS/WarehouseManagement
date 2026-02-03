@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}OEE History - {{ machine.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('costing.oee_dashboard') }}">OEE</a></li>
+                    <li class="breadcrumb-item active">{{ machine.name }}</li>
+                </ol>
+            </nav>
+            <h1>{{ machine.name }} OEE History</h1>
+            <p class="text-muted mb-0">{{ machine.tonnage }}T - Last 30 Days</p>
+        </div>
+        <a href="{{ url_for('costing.oee_log_shift', machine_id=machine.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Log Today
+        </a>
+    </div>
+
+    <!-- Averages -->
+    <div class="row mb-4">
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100 {% if avg_oee >= 85 %}border-success{% elif avg_oee >= 60 %}border-warning{% else %}border-danger{% endif %}">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold text-{% if avg_oee >= 85 %}success{% elif avg_oee >= 60 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(avg_oee) }}%
+                    </div>
+                    <div class="small text-muted">Avg OEE</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold text-{% if avg_availability >= 90 %}success{% elif avg_availability >= 70 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(avg_availability) }}%
+                    </div>
+                    <div class="small text-muted">Availability</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold text-{% if avg_performance >= 95 %}success{% elif avg_performance >= 80 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(avg_performance) }}%
+                    </div>
+                    <div class="small text-muted">Performance</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold text-{% if avg_quality >= 99 %}success{% elif avg_quality >= 95 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(avg_quality) }}%
+                    </div>
+                    <div class="small text-muted">Quality</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold text-{% if avg_scrap <= 3 %}success{% elif avg_scrap <= 5 %}warning{% else %}danger{% endif %}">
+                        {{ "{:.1f}".format(avg_scrap) }}%
+                    </div>
+                    <div class="small text-muted">Scrap Rate</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="fs-3 fw-bold">{{ logs|length }}</div>
+                    <div class="small text-muted">Days Logged</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="card">
+        <div class="card-header">
+            <i class="bi bi-calendar3 me-2"></i>Daily OEE Records
+        </div>
+        <div class="card-body p-0">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Operator</th>
+                            <th class="text-center">OEE</th>
+                            <th class="text-center">Avail</th>
+                            <th class="text-center">Perf</th>
+                            <th class="text-center">Quality</th>
+                            <th class="text-end">Good Parts</th>
+                            <th class="text-end">Scrap</th>
+                            <th class="text-end">Downtime</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.shift_date.strftime('%a %d/%m') }}</td>
+                            <td>{{ log.operator_name or '-' }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-{% if log.oee_percent >= 85 %}success{% elif log.oee_percent >= 60 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.0f}".format(log.oee_percent) }}%
+                                </span>
+                            </td>
+                            <td class="text-center text-{% if log.availability_percent >= 90 %}success{% elif log.availability_percent >= 70 %}warning{% else %}danger{% endif %}">
+                                {{ "{:.0f}".format(log.availability_percent) }}%
+                            </td>
+                            <td class="text-center text-{% if log.performance_percent >= 95 %}success{% elif log.performance_percent >= 80 %}warning{% else %}danger{% endif %}">
+                                {{ "{:.0f}".format(log.performance_percent) }}%
+                            </td>
+                            <td class="text-center text-{% if log.quality_percent >= 99 %}success{% elif log.quality_percent >= 95 %}warning{% else %}danger{% endif %}">
+                                {{ "{:.1f}".format(log.quality_percent) }}%
+                            </td>
+                            <td class="text-end">{{ log.good_parts|int }}</td>
+                            <td class="text-end">
+                                <span class="text-{% if log.scrap_percent <= 3 %}success{% elif log.scrap_percent <= 5 %}warning{% else %}danger{% endif %}">
+                                    {{ log.scrap_parts|int }} ({{ "{:.1f}".format(log.scrap_percent) }}%)
+                                </span>
+                            </td>
+                            <td class="text-end">{{ log.total_downtime_minutes|int }} min</td>
+                            <td>
+                                <a href="{{ url_for('costing.oee_log_shift', machine_id=machine.id, date=log.shift_date.isoformat()) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+                <h5>No OEE data logged</h5>
+                <a href="{{ url_for('costing.oee_log_shift', machine_id=machine.id) }}" class="btn btn-primary mt-2">
+                    Log First Shift
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Chart placeholder -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <i class="bi bi-graph-up me-2"></i>OEE Trend
+        </div>
+        <div class="card-body">
+            <canvas id="oeeChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('oeeChart').getContext('2d');
+const logs = {{ logs|map(attribute='shift_date')|list|tojson }};
+const oeeData = {{ logs|map(attribute='oee_percent')|list|tojson }};
+
+// Reverse to show oldest first
+const labels = logs.map(d => new Date(d).toLocaleDateString('en-GB', {day: '2-digit', month: 'short'})).reverse();
+const data = oeeData.reverse();
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'OEE %',
+            data: data,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            fill: true,
+            tension: 0.1
+        }, {
+            label: 'Target (85%)',
+            data: Array(labels.length).fill(85),
+            borderColor: 'rgba(40, 167, 69, 0.5)',
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

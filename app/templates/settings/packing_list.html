@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Packing List Settings{% endblock %}
+{% block mobile_title %}Packing List{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Settings</a></li>
+                    <li class="breadcrumb-item active">Packing List</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-file-earmark-text me-2"></i>Packing List Settings</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Display Options -->
+                <div class="card mb-3">
+                    <div class="card-header">Display Options</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Document Title</label>
+                            <input type="text" class="form-control" name="packing_list_title"
+                                   value="{{ settings.packing_list_title or 'PACKING LIST' }}"
+                                   placeholder="PACKING LIST">
+                            <small class="text-muted">The title that appears at the top of the document (e.g., "PACKING LIST", "DELIVERY NOTE", "DISPATCH NOTE")</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="packing_list_show_prices"
+                                           id="showPrices" {% if settings.packing_list_show_prices %}checked{% endif %}>
+                                    <label class="form-check-label" for="showPrices">Show Prices</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="packing_list_show_signature"
+                                           id="showSignature" {% if settings.packing_list_show_signature %}checked{% endif %}>
+                                    <label class="form-check-label" for="showSignature">Show Signature Section</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="packing_list_show_bank_details"
+                                           id="showBank" {% if settings.packing_list_show_bank_details %}checked{% endif %}>
+                                    <label class="form-check-label" for="showBank">Show Bank Details</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer & Terms -->
+                <div class="card mb-3">
+                    <div class="card-header">Footer & Terms</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Footer Text</label>
+                            <textarea class="form-control" name="packing_list_footer" rows="3"
+                                      placeholder="Thank you for your business!">{{ settings.packing_list_footer or '' }}</textarea>
+                            <small class="text-muted">This appears at the bottom of every packing list</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Terms & Conditions</label>
+                            <textarea class="form-control" name="packing_list_terms" rows="4"
+                                      placeholder="Goods remain the property of [Company] until paid in full...">{{ settings.packing_list_terms or '' }}</textarea>
+                            <small class="text-muted">Small print terms shown at the very bottom</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Save Settings
+                    </button>
+                    <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Preview Card -->
+            <div class="card mb-3">
+                <div class="card-header">Preview</div>
+                <div class="card-body">
+                    <div class="border rounded p-3 bg-white" style="font-size: 10px;">
+                        <div class="text-center mb-2">
+                            <strong style="font-size: 12px;">{{ settings.company_name or '[Company Name]' }}</strong>
+                        </div>
+                        <div class="text-center mb-2">
+                            <strong style="font-size: 14px;">{{ settings.packing_list_title or 'PACKING LIST' }}</strong>
+                        </div>
+                        <hr style="margin: 5px 0;">
+                        <div class="mb-2">
+                            <strong>Order:</strong> ORD-00001<br>
+                            <strong>Customer:</strong> Example Ltd
+                        </div>
+                        <table class="table table-sm mb-2" style="font-size: 9px;">
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    {% if settings.packing_list_show_prices %}<th class="text-end">Price</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>ITEM001</td>
+                                    <td>Sample Item</td>
+                                    <td class="text-end">100</td>
+                                    {% if settings.packing_list_show_prices %}<td class="text-end">&pound;50.00</td>{% endif %}
+                                </tr>
+                            </tbody>
+                        </table>
+                        {% if settings.packing_list_show_signature %}
+                        <div class="mt-2 pt-2 border-top" style="font-size: 9px;">
+                            Packed by: __________ Date: __________
+                        </div>
+                        {% endif %}
+                        {% if settings.packing_list_show_bank_details %}
+                        <div class="mt-2 pt-2 border-top" style="font-size: 9px;">
+                            <strong>Bank:</strong> {{ settings.bank_name or '[Bank Name]' }}
+                        </div>
+                        {% endif %}
+                        {% if settings.packing_list_footer %}
+                        <div class="mt-2 pt-2 border-top text-muted" style="font-size: 8px;">
+                            {{ settings.packing_list_footer[:50] }}{% if settings.packing_list_footer|length > 50 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help -->
+            <div class="card">
+                <div class="card-header">Help</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        <strong>Document Title:</strong> Change this to "DELIVERY NOTE" or "DISPATCH NOTE" if preferred.
+                    </p>
+                    <p class="small text-muted mb-2">
+                        <strong>Show Prices:</strong> Enable to display unit prices and line totals on the packing list.
+                    </p>
+                    <p class="small text-muted mb-2">
+                        <strong>Signature Section:</strong> Includes "Packed by" and "Received by" signature lines.
+                    </p>
+                    <p class="small text-muted mb-0">
+                        <strong>Bank Details:</strong> Shows your bank information (from Company Settings) at the bottom.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

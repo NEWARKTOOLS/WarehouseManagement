@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}{{ material.code }}{% endblock %}
+{% block mobile_title %}{{ material.code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('materials.material_list') }}">Materials</a></li>
+                    <li class="breadcrumb-item active">{{ material.code }}</li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">{{ material.code }} - {{ material.name }}</h4>
+        </div>
+        <a href="{{ url_for('materials.material_edit', material_id=material.id) }}" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Main Info -->
+        <div class="col-lg-8">
+            <!-- Overview Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Material Details</h5>
+                    <span class="badge bg-{{ 'success' if material.is_active else 'secondary' }} fs-6">
+                        {{ 'Active' if material.is_active else 'Inactive' }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Code</th>
+                                    <td class="fw-bold">{{ material.code }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Name</th>
+                                    <td>{{ material.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Type</th>
+                                    <td><span class="badge bg-primary">{{ material.material_type }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Grade</th>
+                                    <td>{{ material.grade or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Manufacturer</th>
+                                    <td>{{ material.manufacturer or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Colour</th>
+                                    <td>{{ material.color or 'Natural' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th class="text-muted" style="width:40%">Supplier</th>
+                                    <td>{{ material.supplier.name if material.supplier else '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Supplier Code</th>
+                                    <td>{{ material.supplier_code or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">MFI</th>
+                                    <td>{{ material.mfi or '-' }} {% if material.mfi %}g/10min{% endif %}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Density</th>
+                                    <td>{{ material.density or '-' }} {% if material.density %}g/cm³{% endif %}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Created</th>
+                                    <td>{{ material.created_at.strftime('%d %b %Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Updated</th>
+                                    <td>{{ material.updated_at.strftime('%d %b %Y') if material.updated_at else '-' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Parameters -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-thermometer-half"></i> Processing Parameters</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted small">Barrel Temperature</label>
+                                <div class="fs-5">
+                                    {% if material.barrel_temp_min or material.barrel_temp_max %}
+                                    {{ material.barrel_temp_min or '?' }} - {{ material.barrel_temp_max or '?' }} °C
+                                    {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted small">Mould Temperature</label>
+                                <div class="fs-5">
+                                    {% if material.mould_temp_min or material.mould_temp_max %}
+                                    {{ material.mould_temp_min or '?' }} - {{ material.mould_temp_max or '?' }} °C
+                                    {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="mb-0">
+                                <label class="text-muted small">Drying</label>
+                                <div class="fs-5">
+                                    {% if material.drying_required %}
+                                    <span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Required</span> -
+                                    {{ material.drying_temp or '?' }}°C for {{ material.drying_time_hours or '?' }} hours
+                                    {% else %}
+                                    <span class="text-success"><i class="bi bi-check-circle"></i> Not required</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Using This Material -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-box"></i> Parts Using This Material</h5>
+                </div>
+                <div class="card-body">
+                    {% if items_using %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Name</th>
+                                    <th>Part Weight</th>
+                                    <th>Customer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items_using %}
+                                <tr>
+                                    <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}">{{ item.sku }}</a></td>
+                                    <td>{{ item.name }}</td>
+                                    <td>{{ item.part_weight_grams or '-' }} g</td>
+                                    <td>{{ item.customer.name if item.customer else '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No parts are currently linked to this material.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Price History -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Price History</h5>
+                </div>
+                <div class="card-body">
+                    {% if price_history %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th class="text-end">Price/kg</th>
+                                    <th>Reason</th>
+                                    <th>By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ph in price_history %}
+                                <tr>
+                                    <td>{{ ph.effective_date.strftime('%d %b %Y') }}</td>
+                                    <td class="text-end fw-bold">£{{ "%.2f"|format(ph.cost_per_kg) }}</td>
+                                    <td>{{ ph.reason or '-' }}</td>
+                                    <td>{{ ph.created_by or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No price history recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if material.notes %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ material.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Pricing Card -->
+            <div class="card border-0 shadow-sm mb-4 bg-primary text-white">
+                <div class="card-body text-center">
+                    <div class="text-white-50 small mb-1">Current Price</div>
+                    <div class="display-5 fw-bold">£{{ "%.2f"|format(material.cost_per_kg) }}</div>
+                    <div class="text-white-50">per kg</div>
+                    {% if material.last_price_update %}
+                    <hr class="my-3 opacity-25">
+                    <small class="text-white-50">
+                        Last updated: {{ material.last_price_update.strftime('%d %b %Y') }}
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Price Update -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Quick Price Update</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('materials.material_update_price', material_id=material.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input type="number" name="cost_per_kg" step="0.01" class="form-control"
+                                       value="{{ material.cost_per_kg }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="reason" class="form-control form-control-sm"
+                                   placeholder="Reason for change...">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">Update Price</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Stock Status -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Stock Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Current Stock</span>
+                        <span class="fs-5 fw-bold">{{ "%.1f"|format(material.current_stock_kg or 0) }} kg</span>
+                    </div>
+                    {% if material.min_stock_kg %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Minimum Level</span>
+                        <span>{{ "%.1f"|format(material.min_stock_kg) }} kg</span>
+                    </div>
+                    {% endif %}
+                    {% if material.reorder_qty_kg %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Reorder Qty</span>
+                        <span>{{ "%.1f"|format(material.reorder_qty_kg) }} kg</span>
+                    </div>
+                    {% endif %}
+                    {% if material.min_stock_kg and material.current_stock_kg is not none %}
+                    <div class="progress mt-3" style="height: 10px;">
+                        {% set stock_percent = (material.current_stock_kg / material.min_stock_kg * 100) | int %}
+                        <div class="progress-bar bg-{{ 'danger' if stock_percent < 100 else 'success' }}"
+                             style="width: {{ [stock_percent, 100] | min }}%"></div>
+                    </div>
+                    <small class="text-muted">
+                        {% if material.current_stock_kg < material.min_stock_kg %}
+                        <i class="bi bi-exclamation-triangle text-danger"></i> Below minimum level
+                        {% else %}
+                        <i class="bi bi-check-circle text-success"></i> Stock OK
+                        {% endif %}
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Supplier Info -->
+            {% if material.supplier %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-building"></i> Supplier</h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-1">{{ material.supplier.name }}</h6>
+                    {% if material.supplier.contact_name %}
+                    <p class="small mb-1">{{ material.supplier.contact_name }}</p>
+                    {% endif %}
+                    {% if material.supplier.email %}
+                    <p class="small mb-1"><a href="mailto:{{ material.supplier.email }}">{{ material.supplier.email }}</a></p>
+                    {% endif %}
+                    {% if material.supplier.phone %}
+                    <p class="small mb-1"><a href="tel:{{ material.supplier.phone }}">{{ material.supplier.phone }}</a></p>
+                    {% endif %}
+                    {% if material.supplier.lead_time_days %}
+                    <p class="small mb-0 text-muted">Lead time: {{ material.supplier.lead_time_days }} days</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

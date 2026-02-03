@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if material else 'New' }} Material{% endblock %}
+{% block mobile_title %}{{ 'Edit' if material else 'New' }} Material{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('materials.material_list') }}">Materials</a></li>
+                    <li class="breadcrumb-item active">{{ 'Edit' if material else 'New' }}</li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">{{ 'Edit Material: ' + material.code if material else 'New Material' }}</h4>
+        </div>
+    </div>
+
+    <form method="POST" class="needs-validation" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <!-- Main Details -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Material Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Material Code <span class="text-danger">*</span></label>
+                                <input type="text" name="code" class="form-control text-uppercase"
+                                       value="{{ material.code if material else '' }}"
+                                       {% if material %}readonly{% else %}required{% endif %}
+                                       placeholder="e.g., PP-H450">
+                                <small class="text-muted">Unique identifier</small>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" required
+                                       value="{{ material.name if material else '' }}"
+                                       placeholder="e.g., Polypropylene Homopolymer">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Type <span class="text-danger">*</span></label>
+                                <select name="material_type" class="form-select" required>
+                                    <option value="">Select type...</option>
+                                    {% for mt in ['PP', 'PE', 'HDPE', 'LDPE', 'ABS', 'PA6', 'PA66', 'POM', 'PC', 'PET', 'PBT', 'TPE', 'TPU', 'Other'] %}
+                                    <option value="{{ mt }}" {% if material and material.material_type == mt %}selected{% endif %}>{{ mt }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Grade</label>
+                                <input type="text" name="grade" class="form-control"
+                                       value="{{ material.grade if material else '' }}"
+                                       placeholder="e.g., H450J">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Manufacturer</label>
+                                <input type="text" name="manufacturer" class="form-control"
+                                       value="{{ material.manufacturer if material else '' }}"
+                                       placeholder="e.g., SABIC">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supplier</label>
+                                <select name="supplier_id" class="form-select">
+                                    <option value="">Select supplier...</option>
+                                    {% for s in suppliers %}
+                                    <option value="{{ s.id }}" {% if material and material.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supplier Code</label>
+                                <input type="text" name="supplier_code" class="form-control"
+                                       value="{{ material.supplier_code if material else '' }}"
+                                       placeholder="Supplier's product code">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Colour</label>
+                                <input type="text" name="color" class="form-control"
+                                       value="{{ material.color if material else 'Natural' }}"
+                                       placeholder="e.g., Natural, Black">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">MFI (g/10min)</label>
+                                <input type="number" name="mfi" step="0.1" class="form-control"
+                                       value="{{ material.mfi if material else '' }}"
+                                       placeholder="Melt flow index">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Density (g/cm³)</label>
+                                <input type="number" name="density" step="0.01" class="form-control"
+                                       value="{{ material.density if material else '' }}"
+                                       placeholder="e.g., 0.9">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Parameters -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-thermometer-half"></i> Processing Parameters</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Barrel Temp Min (°C)</label>
+                                <input type="number" name="barrel_temp_min" class="form-control"
+                                       value="{{ material.barrel_temp_min if material else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Barrel Temp Max (°C)</label>
+                                <input type="number" name="barrel_temp_max" class="form-control"
+                                       value="{{ material.barrel_temp_max if material else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Mould Temp Min (°C)</label>
+                                <input type="number" name="mould_temp_min" class="form-control"
+                                       value="{{ material.mould_temp_min if material else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Mould Temp Max (°C)</label>
+                                <input type="number" name="mould_temp_max" class="form-control"
+                                       value="{{ material.mould_temp_max if material else '' }}">
+                            </div>
+                            <div class="col-12">
+                                <hr class="my-2">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="drying_required" id="drying_required"
+                                           {% if material and material.drying_required %}checked{% endif %}
+                                           onchange="toggleDrying()">
+                                    <label class="form-check-label" for="drying_required">
+                                        Drying Required
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4" id="drying_temp_group">
+                                <label class="form-label">Drying Temp (°C)</label>
+                                <input type="number" name="drying_temp" class="form-control"
+                                       value="{{ material.drying_temp if material else '' }}">
+                            </div>
+                            <div class="col-md-4" id="drying_time_group">
+                                <label class="form-label">Drying Time (hours)</label>
+                                <input type="number" name="drying_time_hours" step="0.5" class="form-control"
+                                       value="{{ material.drying_time_hours if material else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3"
+                                  placeholder="Additional notes about this material...">{{ material.notes if material else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Pricing -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-currency-pound"></i> Pricing</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Cost per kg (£) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input type="number" name="cost_per_kg" step="0.01" class="form-control" required
+                                       value="{{ material.cost_per_kg if material else '' }}"
+                                       placeholder="0.00">
+                            </div>
+                        </div>
+                        {% if material %}
+                        <div class="mb-3">
+                            <label class="form-label">Price Change Reason</label>
+                            <input type="text" name="price_change_reason" class="form-control"
+                                   placeholder="e.g., Supplier increase">
+                            <small class="text-muted">Required if price changed</small>
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-clock"></i> Last updated:
+                            {{ material.last_price_update.strftime('%d %b %Y') if material.last_price_update else 'Never' }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Stock Levels -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Stock Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if material %}
+                        <div class="mb-3">
+                            <label class="form-label">Current Stock (kg)</label>
+                            <input type="number" step="0.1" class="form-control" readonly
+                                   value="{{ material.current_stock_kg or 0 }}">
+                            <small class="text-muted">Updated via stock movements</small>
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <label class="form-label">Minimum Stock (kg)</label>
+                            <input type="number" name="min_stock_kg" step="0.1" class="form-control"
+                                   value="{{ material.min_stock_kg if material else '' }}"
+                                   placeholder="Alert when below">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reorder Quantity (kg)</label>
+                            <input type="number" name="reorder_qty_kg" step="0.1" class="form-control"
+                                   value="{{ material.reorder_qty_kg if material else '' }}"
+                                   placeholder="Typical order size">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-lg"></i> {{ 'Update Material' if material else 'Create Material' }}
+                    </button>
+                    <a href="{{ url_for('materials.material_detail', material_id=material.id) if material else url_for('materials.material_list') }}"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleDrying() {
+    const checkbox = document.getElementById('drying_required');
+    const tempGroup = document.getElementById('drying_temp_group');
+    const timeGroup = document.getElementById('drying_time_group');
+
+    if (checkbox.checked) {
+        tempGroup.style.display = 'block';
+        timeGroup.style.display = 'block';
+    } else {
+        tempGroup.style.display = 'none';
+        timeGroup.style.display = 'none';
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleDrying);
+</script>
+{% endblock %}

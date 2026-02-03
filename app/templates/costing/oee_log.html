@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Log Shift - {{ machine.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('costing.oee_dashboard') }}">OEE</a></li>
+                    <li class="breadcrumb-item active">{{ machine.name }}</li>
+                </ol>
+            </nav>
+            <h1>Log Shift Data</h1>
+            <p class="text-muted mb-0">{{ machine.name }} ({{ machine.tonnage }}T) - {{ log_date.strftime('%d %B %Y') }}</p>
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Time & Downtime -->
+                <div class="card mb-3">
+                    <div class="card-header bg-primary bg-opacity-10">
+                        <i class="bi bi-clock me-2"></i>Availability (Time)
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Planned Production Time (minutes)</label>
+                                <input type="number" name="planned_production_minutes" class="form-control"
+                                       value="{{ shift_log.planned_production_minutes if shift_log else 480 }}"
+                                       placeholder="480 = 8 hours">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Operator</label>
+                                <input type="text" name="operator_name" class="form-control"
+                                       value="{{ shift_log.operator_name if shift_log else '' }}"
+                                       placeholder="Operator name">
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted mt-4 mb-3">Downtime (minutes)</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Breakdown</label>
+                                <input type="number" step="1" name="breakdown_minutes" class="form-control"
+                                       value="{{ shift_log.breakdown_minutes|int if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Setup/Changeover</label>
+                                <input type="number" step="1" name="setup_changeover_minutes" class="form-control"
+                                       value="{{ shift_log.setup_changeover_minutes|int if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Material Shortage</label>
+                                <input type="number" step="1" name="material_shortage_minutes" class="form-control"
+                                       value="{{ shift_log.material_shortage_minutes|int if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Other</label>
+                                <input type="number" step="1" name="other_downtime_minutes" class="form-control"
+                                       value="{{ shift_log.other_downtime_minutes|int if shift_log else 0 }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Downtime Notes</label>
+                                <textarea name="downtime_notes" class="form-control" rows="2"
+                                          placeholder="Details of any downtime...">{{ shift_log.downtime_notes if shift_log else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <i class="bi bi-speedometer me-2"></i>Performance (Speed)
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Ideal Cycle Time (seconds)</label>
+                                <input type="number" step="0.1" name="ideal_cycle_time_seconds" class="form-control"
+                                       value="{{ shift_log.ideal_cycle_time_seconds if shift_log else '' }}"
+                                       placeholder="From setup sheet">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Cavities (parts per cycle)</label>
+                                <input type="number" name="parts_per_cycle" class="form-control"
+                                       value="{{ shift_log.parts_per_cycle if shift_log else 1 }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Production Order</label>
+                                <select name="production_order_id" class="form-select">
+                                    <option value="">None</option>
+                                    {% for order in active_orders %}
+                                    <option value="{{ order.id }}" {% if shift_log and shift_log.production_order_id == order.id %}selected{% endif %}>
+                                        {{ order.order_number }} - {{ order.item.sku if order.item else 'N/A' }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quality -->
+                <div class="card mb-3">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <i class="bi bi-check-circle me-2"></i>Quality (Output)
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Total Parts Produced</label>
+                                <input type="number" name="total_parts_produced" class="form-control"
+                                       value="{{ shift_log.total_parts_produced if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Good Parts</label>
+                                <input type="number" name="good_parts" class="form-control"
+                                       value="{{ shift_log.good_parts if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Scrap Parts</label>
+                                <input type="number" name="scrap_parts" class="form-control"
+                                       value="{{ shift_log.scrap_parts if shift_log else 0 }}">
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted mt-4 mb-3">Scrap Breakdown (optional)</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Startup</label>
+                                <input type="number" name="scrap_startup" class="form-control"
+                                       value="{{ shift_log.scrap_startup if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Short Shot</label>
+                                <input type="number" name="scrap_short_shot" class="form-control"
+                                       value="{{ shift_log.scrap_short_shot if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Flash</label>
+                                <input type="number" name="scrap_flash" class="form-control"
+                                       value="{{ shift_log.scrap_flash if shift_log else 0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Other</label>
+                                <input type="number" name="scrap_other" class="form-control"
+                                       value="{{ shift_log.scrap_other if shift_log else 0 }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Scrap Notes</label>
+                                <textarea name="scrap_notes" class="form-control" rows="2"
+                                          placeholder="Details of any quality issues...">{{ shift_log.scrap_notes if shift_log else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Live OEE Calculation -->
+                <div class="card sticky-top" style="top: 1rem;">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-calculator me-2"></i>OEE Calculation
+                    </div>
+                    <div class="card-body">
+                        {% if shift_log %}
+                        <div class="text-center mb-4">
+                            <div class="display-3 fw-bold text-{% if shift_log.oee_percent >= 85 %}success{% elif shift_log.oee_percent >= 60 %}warning{% else %}danger{% endif %}">
+                                {{ "{:.1f}".format(shift_log.oee_percent) }}%
+                            </div>
+                            <div class="text-muted">OEE Score</div>
+                        </div>
+
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Availability</td>
+                                <td class="text-end text-{% if shift_log.availability_percent >= 90 %}success{% elif shift_log.availability_percent >= 70 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(shift_log.availability_percent) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Performance</td>
+                                <td class="text-end text-{% if shift_log.performance_percent >= 95 %}success{% elif shift_log.performance_percent >= 80 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(shift_log.performance_percent) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Quality</td>
+                                <td class="text-end text-{% if shift_log.quality_percent >= 99 %}success{% elif shift_log.quality_percent >= 95 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(shift_log.quality_percent) }}%
+                                </td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <th>Scrap Rate</th>
+                                <td class="text-end text-{% if shift_log.scrap_percent <= 3 %}success{% elif shift_log.scrap_percent <= 5 %}warning{% else %}danger{% endif %}">
+                                    {{ "{:.1f}".format(shift_log.scrap_percent) }}%
+                                </td>
+                            </tr>
+                        </table>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-calculator fs-1 d-block mb-2"></i>
+                            Fill in the form and save to calculate OEE
+                        </div>
+                        {% endif %}
+
+                        <hr>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg me-2"></i>Save Shift Log
+                            </button>
+                            <a href="{{ url_for('costing.oee_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

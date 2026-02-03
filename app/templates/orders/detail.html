@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block mobile_title %}{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('orders.order_list') }}">Orders</a></li>
+                    <li class="breadcrumb-item active">{{ order.order_number }}</li>
+                </ol>
+            </nav>
+            <h1>{{ order.customer.name }}</h1>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
+            <a href="{{ url_for('orders.order_edit', order_id=order.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            {% if current_user.is_admin() %}
+            <form method="POST" action="{{ url_for('orders.order_delete', order_id=order.id) }}" class="d-inline"
+                  onsubmit="return confirm('PERMANENTLY DELETE order {{ order.order_number }}?\n\nThis will delete all order lines and delivery records.\n\nThis cannot be undone!')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Line Items -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Order Items</span>
+                    {% if order.status in ['new', 'in_production'] %}
+                    <a href="{{ url_for('orders.order_edit', order_id=order.id) }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus"></i> Add Items
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if order.lines.count() > 0 %}
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Shipped</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in order.lines %}
+                                <tr>
+                                    <td>
+                                        {% if line.is_custom_item %}
+                                        <span class="badge bg-secondary me-1">Custom</span>
+                                        {{ line.custom_sku or 'CUSTOM' }}
+                                        <br><small class="text-muted">{{ line.custom_description }}</small>
+                                        {% else %}
+                                        <a href="{{ url_for('inventory.item_detail', item_id=line.item.id) }}">{{ line.item.sku }}</a>
+                                        <br><small class="text-muted">{{ line.item.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ line.quantity_ordered|int }}</td>
+                                    <td class="text-end">
+                                        {% if line.quantity_shipped >= line.quantity_ordered %}
+                                        <span class="text-success">{{ line.quantity_shipped|int }} <i class="bi bi-check"></i></span>
+                                        {% elif line.quantity_shipped > 0 %}
+                                        <span class="text-warning">{{ line.quantity_shipped|int }}/{{ line.quantity_ordered|int }}</span>
+                                        {% else %}
+                                        <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">&pound;{{ "{:,.2f}".format(line.unit_price) }}</td>
+                                    <td class="text-end">&pound;{{ "{:,.2f}".format(line.line_total) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="4" class="text-end">Subtotal</th>
+                                    <td class="text-end">&pound;{{ "{:,.2f}".format(order.subtotal) }}</td>
+                                </tr>
+                                {% if order.shipping_cost and order.shipping_cost > 0 %}
+                                <tr>
+                                    <th colspan="4" class="text-end">Shipping</th>
+                                    <td class="text-end">&pound;{{ "{:,.2f}".format(order.shipping_cost) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th colspan="4" class="text-end">VAT ({{ order.tax_rate }}%)</th>
+                                    <td class="text-end">&pound;{{ "{:,.2f}".format(order.tax_amount) }}</td>
+                                </tr>
+                                <tr class="table-active">
+                                    <th colspan="4" class="text-end">Total</th>
+                                    <td class="text-end"><strong>&pound;{{ "{:,.2f}".format(order.total) }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <p>No items added yet</p>
+                        <a href="{{ url_for('orders.order_edit', order_id=order.id) }}" class="btn btn-primary">Add Items</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card mb-3">
+                <div class="card-header">Actions</div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('orders.packing_list', order_id=order.id) }}" class="btn btn-outline-primary" target="_blank">
+                            <i class="bi bi-file-pdf me-1"></i> Packing List
+                        </a>
+
+                        {% if order.status == 'new' and order.lines.count() > 0 %}
+                        <!-- Primary action for new orders: Check stock and process -->
+                        <a href="{{ url_for('orders.check_stock', order_id=order.id) }}" class="btn btn-primary">
+                            <i class="bi bi-box-seam me-1"></i> Check Stock & Process
+                        </a>
+                        <form method="POST" action="{{ url_for('orders.process_order', order_id=order.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-lightning me-1"></i> Quick Process
+                            </button>
+                        </form>
+                        {% elif order.status == 'in_production' %}
+                        <a href="{{ url_for('orders.check_stock', order_id=order.id) }}" class="btn btn-outline-info">
+                            <i class="bi bi-box-seam me-1"></i> Check Stock
+                        </a>
+                        <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="ready_to_ship">
+                            <button type="submit" class="btn btn-info">
+                                <i class="bi bi-check-circle me-1"></i> Ready to Ship
+                            </button>
+                        </form>
+                        {% elif order.status == 'ready_to_ship' or order.status == 'partially_shipped' %}
+                        <a href="{{ url_for('orders.dispatch', order_id=order.id) }}" class="btn btn-success">
+                            <i class="bi bi-truck me-1"></i> Dispatch
+                        </a>
+                        {% elif order.status == 'dispatched' %}
+                        <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="delivered">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-all me-1"></i> Mark Delivered
+                            </button>
+                        </form>
+                        {% elif order.status == 'delivered' %}
+                        <form method="POST" action="{{ url_for('orders.archive_order', order_id=order.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-secondary">
+                                <i class="bi bi-archive me-1"></i> Archive
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        {% if order.status in ['new', 'in_production'] %}
+                        <form method="POST" action="{{ url_for('orders.update_status', order_id=order.id) }}" class="d-inline ms-auto">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="cancelled">
+                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linked Production Orders -->
+            {% if order.production_orders.count() > 0 %}
+            <div class="card mb-3">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <i class="bi bi-gear me-2"></i>Production Orders
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in order.production_orders %}
+                                <tr>
+                                    <td><a href="{{ url_for('production.order_detail', order_id=po.id) }}">{{ po.order_number }}</a></td>
+                                    <td>{{ po.item.sku if po.item else 'N/A' }}</td>
+                                    <td>{{ po.quantity_required|int }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if po.status == 'completed' else 'primary' if po.status == 'in_progress' else 'secondary' }}">
+                                            {{ po.status|replace('_', ' ')|title }}
+                                        </span>
+                                    </td>
+                                    <td style="width: 120px;">
+                                        <div class="progress" style="height: 16px;">
+                                            <div class="progress-bar bg-{{ 'success' if po.completion_percentage >= 100 else 'primary' }}"
+                                                 style="width: {{ po.completion_percentage }}%">
+                                                {{ po.completion_percentage|round|int }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Delivery History -->
+            {% if order.deliveries.count() > 0 %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-truck me-2"></i>Delivery History
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Delivery #</th>
+                                    <th>Date</th>
+                                    <th>Method</th>
+                                    <th>Tracking</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery in order.deliveries %}
+                                <tr>
+                                    <td>{{ delivery.delivery_number }}</td>
+                                    <td>{{ delivery.dispatch_date.strftime('%d/%m/%Y') if delivery.dispatch_date else '-' }}</td>
+                                    <td>{{ delivery.delivery_method or delivery.carrier or '-' }}</td>
+                                    <td>{{ delivery.tracking_number or '-' }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if delivery.status == 'delivered' else 'info' }}">
+                                            {{ delivery.status|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Order Info -->
+            <div class="card mb-3">
+                <div class="card-header">Order Details</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Order #</th>
+                            <td>{{ order.order_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Customer PO</th>
+                            <td>{{ order.customer_po or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Order Date</th>
+                            <td>{{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Required</th>
+                            <td>
+                                {% if order.required_date %}
+                                {{ order.required_date.strftime('%d/%m/%Y') }}
+                                {% set days_until = (order.required_date - today).days if today else 0 %}
+                                {% if days_until < 0 %}
+                                <span class="badge bg-danger ms-1">Overdue</span>
+                                {% elif days_until <= 2 %}
+                                <span class="badge bg-warning ms-1">{{ days_until }}d</span>
+                                {% endif %}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Delivery</th>
+                            <td>{{ order.delivery_method|replace('_', ' ')|title if order.delivery_method else '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Customer -->
+            <div class="card mb-3">
+                <div class="card-header">Customer</div>
+                <div class="card-body">
+                    <h6><a href="{{ url_for('customers.customer_detail', customer_id=order.customer.id) }}">{{ order.customer.name }}</a></h6>
+                    {% if order.customer.is_jit %}<span class="badge bg-warning mb-2">JIT Customer</span>{% endif %}
+                    <p class="mb-0 small text-muted">
+                        {{ order.customer.contact_name or '' }}<br>
+                        {{ order.customer.email or '' }}<br>
+                        {{ order.customer.phone or '' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Delivery Address -->
+            <div class="card mb-3">
+                <div class="card-header">Delivery Address</div>
+                <div class="card-body">
+                    <p class="mb-0">
+                        {{ order.delivery_address_line1 or '' }}<br>
+                        {% if order.delivery_address_line2 %}{{ order.delivery_address_line2 }}<br>{% endif %}
+                        {{ order.delivery_city or '' }}<br>
+                        {{ order.delivery_postcode or '' }}
+                    </p>
+                    {% if order.delivery_instructions %}
+                    <hr>
+                    <small class="text-muted"><strong>Instructions:</strong> {{ order.delivery_instructions }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if order.notes %}
+            <div class="card mb-3">
+                <div class="card-header">Notes</div>
+                <div class="card-body">{{ order.notes }}</div>
+            </div>
+            {% endif %}
+
+            {% if order.internal_notes %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning bg-opacity-25">Internal Notes</div>
+                <div class="card-body">{{ order.internal_notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% set today = none %}
+{% endblock %}

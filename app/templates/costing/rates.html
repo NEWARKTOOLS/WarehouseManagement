@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Rates Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-sliders me-2"></i>Rates Management</h1>
+            <p class="text-muted mb-0">Configure machine and labour rates for accurate costing</p>
+        </div>
+        <a href="{{ url_for('costing.bi_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-graph-up me-1"></i>BI Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Machine Rates -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cpu me-2"></i>Machine Rates</span>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#machineRateModal">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    {% if machine_rates %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Machine</th>
+                                    <th class="text-end">Hourly</th>
+                                    <th class="text-end">Setup</th>
+                                    <th class="text-end">Energy</th>
+                                    <th>From</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rate in machine_rates %}
+                                <tr>
+                                    <td>{{ rate.machine.name }}</td>
+                                    <td class="text-end">&pound;{{ "{:.2f}".format(rate.hourly_rate) }}</td>
+                                    <td class="text-end">&pound;{{ "{:.2f}".format(rate.setup_rate) }}</td>
+                                    <td class="text-end">&pound;{{ "{:.3f}".format(rate.energy_rate_per_kwh) }}/kWh</td>
+                                    <td>{{ rate.effective_from.strftime('%d/%m/%y') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-cpu fs-1 d-block mb-2"></i>
+                        <p class="mb-2">No machine rates configured</p>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#machineRateModal">
+                            Add Machine Rate
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Labour Rates -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-people me-2"></i>Labour Rates</span>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#labourRateModal">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    {% if labour_rates %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Role</th>
+                                    <th class="text-end">Hourly</th>
+                                    <th class="text-end">OT x</th>
+                                    <th>From</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rate in labour_rates %}
+                                <tr>
+                                    <td>{{ rate.role }}</td>
+                                    <td class="text-end">&pound;{{ "{:.2f}".format(rate.hourly_rate) }}</td>
+                                    <td class="text-end">{{ rate.overtime_multiplier }}x</td>
+                                    <td>{{ rate.effective_from.strftime('%d/%m/%y') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>
+                        <p class="mb-2">No labour rates configured</p>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#labourRateModal">
+                            Add Labour Rate
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Typical Rates Info -->
+    <div class="card border-info">
+        <div class="card-header bg-info bg-opacity-10">
+            <i class="bi bi-info-circle me-2"></i>Typical UK Injection Moulding Rates (2024)
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <h6>Machine Rates</h6>
+                    <ul class="small mb-0">
+                        <li>Small (50-100T): &pound;30-40/hr</li>
+                        <li>Medium (100-250T): &pound;40-55/hr</li>
+                        <li>Large (250-500T): &pound;55-75/hr</li>
+                        <li>Very Large (500T+): &pound;75-120/hr</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h6>Labour Rates</h6>
+                    <ul class="small mb-0">
+                        <li>Operator: &pound;12-15/hr</li>
+                        <li>Senior Operator: &pound;15-18/hr</li>
+                        <li>Setter: &pound;18-25/hr</li>
+                        <li>Process Technician: &pound;22-30/hr</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h6>Other Costs</h6>
+                    <ul class="small mb-0">
+                        <li>Electricity: &pound;0.15-0.25/kWh</li>
+                        <li>Setup: Typically 1.5x machine rate</li>
+                        <li>Overhead: 15-25% of direct costs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Machine Rate Modal -->
+<div class="modal fade" id="machineRateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('costing.add_machine_rate') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Machine Rate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Machine</label>
+                        <select name="machine_id" class="form-select" required>
+                            <option value="">Select machine...</option>
+                            {% for m in machines %}
+                            <option value="{{ m.id }}">{{ m.name }} ({{ m.tonnage }}T)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Hourly Rate (&pound;)</label>
+                            <input type="number" step="0.01" name="hourly_rate" class="form-control" required placeholder="45.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Setup Rate (&pound;/hr)</label>
+                            <input type="number" step="0.01" name="setup_rate" class="form-control" placeholder="60.00">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-6">
+                            <label class="form-label">Energy Rate (&pound;/kWh)</label>
+                            <input type="number" step="0.001" name="energy_rate_per_kwh" class="form-control" value="0.15">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Running Power (kW)</label>
+                            <input type="number" step="0.1" name="running_kw" class="form-control" placeholder="25">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-6">
+                            <label class="form-label">Overhead Rate (&pound;/hr)</label>
+                            <input type="number" step="0.01" name="overhead_rate_per_hour" class="form-control" placeholder="10.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Effective From</label>
+                            <input type="date" name="effective_from" class="form-control" required value="{{ today.strftime('%Y-%m-%d') if today else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Rate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Labour Rate Modal -->
+<div class="modal fade" id="labourRateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('costing.add_labour_rate') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Labour Rate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select" required>
+                            <option value="">Select role...</option>
+                            <option value="Operator">Operator</option>
+                            <option value="Senior Operator">Senior Operator</option>
+                            <option value="Setter">Setter</option>
+                            <option value="Process Technician">Process Technician</option>
+                            <option value="QC Inspector">QC Inspector</option>
+                            <option value="Warehouse">Warehouse</option>
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Hourly Rate (&pound;)</label>
+                            <input type="number" step="0.01" name="hourly_rate" class="form-control" required placeholder="15.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">OT Multiplier</label>
+                            <input type="number" step="0.1" name="overtime_multiplier" class="form-control" value="1.5">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Effective From</label>
+                        <input type="date" name="effective_from" class="form-control" required value="{{ today.strftime('%Y-%m-%d') if today else '' }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Rate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

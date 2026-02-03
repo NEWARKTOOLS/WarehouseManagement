@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Moulds{% endblock %}
+{% block mobile_title %}Moulds{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-tools me-2"></i>Moulds</h1>
+        <a href="{{ url_for('moulds.mould_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add Mould
+        </a>
+    </div>
+
+    {% if maintenance_due > 0 %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>{{ maintenance_due }} mould(s)</strong> have maintenance due.
+        <a href="{{ url_for('moulds.maintenance_due') }}" class="alert-link">View details</a>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-2">
+                <div class="col-6 col-md-3">
+                    <select class="form-select" name="status" onchange="this.form.submit()">
+                        <option value="">All Statuses</option>
+                        <option value="available" {% if status == 'available' %}selected{% endif %}>Available</option>
+                        <option value="in_use" {% if status == 'in_use' %}selected{% endif %}>In Use</option>
+                        <option value="maintenance" {% if status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                        <option value="awaiting_repair" {% if status == 'awaiting_repair' %}selected{% endif %}>Awaiting Repair</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select class="form-select" name="type" onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        <option value="individual" {% if mould_type == 'individual' %}selected{% endif %}>Individual</option>
+                        <option value="family" {% if mould_type == 'family' %}selected{% endif %}>Family</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mould List -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Mould #</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Tonnage</th>
+                            <th>Cavities</th>
+                            <th>Status</th>
+                            <th>Next PM</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mould in moulds %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('moulds.mould_detail', mould_id=mould.id) }}">
+                                    <strong>{{ mould.mould_number }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ mould.name or '-' }}</td>
+                            <td>{{ mould.mould_type|title }}</td>
+                            <td>{{ mould.tonnage_required or '-' }}T</td>
+                            <td>{{ mould.num_cavities }}</td>
+                            <td>
+                                <span class="status-badge status-{{ mould.status }}">
+                                    {{ mould.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td class="{% if mould.is_maintenance_due %}text-danger fw-bold{% endif %}">
+                                {{ mould.next_maintenance_date.strftime('%d/%m/%Y') if mould.next_maintenance_date else '-' }}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('moulds.mould_edit', mould_id=mould.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No moulds found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

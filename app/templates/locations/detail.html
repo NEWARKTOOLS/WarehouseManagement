@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}{{ location.code }}{% endblock %}
+{% block mobile_title %}{{ location.code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('locations.location_list') }}">Locations</a></li>
+                    <li class="breadcrumb-item active">{{ location.code }}</li>
+                </ol>
+            </nav>
+            <h1>{{ location.name }}</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('locations.location_edit', location_id=location.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            {% if current_user.is_admin() %}
+            <form method="POST" action="{{ url_for('locations.location_delete', location_id=location.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete this location? This cannot be undone.')">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Contents -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-box-seam me-2"></i>Contents
+                </div>
+                <div class="card-body p-0">
+                    {% if stock_levels %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Name</th>
+                                    <th class="text-end">Quantity</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sl in stock_levels %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('inventory.item_detail', item_id=sl.item.id) }}">
+                                            <strong>{{ sl.item.sku }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>{{ sl.item.name }}</td>
+                                    <td class="text-end">{{ sl.quantity }} {{ sl.item.unit_of_measure }}</td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('inventory.move_stock') }}?item_id={{ sl.item.id }}&from_location={{ location.id }}" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-arrows-move"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state py-4">
+                        <i class="bi bi-inbox"></i>
+                        <p>Location is empty</p>
+                        <a href="{{ url_for('inventory.receive_stock') }}" class="btn btn-success">Receive Stock</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Location Details -->
+            <div class="card mb-3">
+                <div class="card-header">Details</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Code</th>
+                            <td>{{ location.code }}</td>
+                        </tr>
+                        <tr>
+                            <th>Type</th>
+                            <td>{{ location.location_type|title if location.location_type else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Zone</th>
+                            <td>{{ location.zone or '-' }}</td>
+                        </tr>
+                        {% if location.row %}
+                        <tr>
+                            <th>Position</th>
+                            <td>Row {{ location.row }}, Bay {{ location.bay or '-' }}, Shelf {{ location.shelf or '-' }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Capacity -->
+            {% if location.max_capacity > 0 %}
+            <div class="card mb-3">
+                <div class="card-header">Capacity</div>
+                <div class="card-body">
+                    <div class="progress mb-2" style="height: 20px;">
+                        <div class="progress-bar" style="width: {{ location.usage_percentage }}%">
+                            {{ location.usage_percentage|round(0) }}%
+                        </div>
+                    </div>
+                    <p class="mb-0">
+                        {{ location.current_usage }} / {{ location.max_capacity }} {{ location.capacity_units }}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if location.description %}
+            <div class="card mb-3">
+                <div class="card-header">Description</div>
+                <div class="card-body">
+                    {{ location.description }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

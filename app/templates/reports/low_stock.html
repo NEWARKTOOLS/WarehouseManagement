@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Low Stock Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Low Stock</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-exclamation-triangle text-warning me-2"></i>Low Stock Alert</h1>
+        </div>
+    </div>
+
+    {% if items %}
+    <div class="card">
+        <div class="card-header bg-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ items|length }} Item(s) Below Reorder Level
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="text-end">Current Stock</th>
+                            <th class="text-end">Reorder Level</th>
+                            <th class="text-end">Shortfall</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('inventory.item_detail', item_id=item.id) }}">
+                                    <strong>{{ item.sku }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ item.description or '-' }}</td>
+                            <td>{{ item.category.name if item.category else '-' }}</td>
+                            <td class="text-end text-danger fw-bold">
+                                {{ "{:,.0f}".format(item.total_stock) }}
+                            </td>
+                            <td class="text-end">{{ "{:,.0f}".format(item.reorder_level or 0) }}</td>
+                            <td class="text-end text-danger">
+                                {{ "{:,.0f}".format((item.reorder_level or 0) - item.total_stock) }}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('inventory.receive_stock', item_id=item.id) }}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-plus"></i> Receive
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-check-circle text-success"></i>
+        <p>All items are above their reorder levels</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

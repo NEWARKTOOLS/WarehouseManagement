@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Non-Conformance Report{% endblock %}
+{% block mobile_title %}NCRs{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Non-Conformances</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-clipboard-x me-2"></i>Non-Conformance Report</h1>
+        </div>
+        <button onclick="window.print()" class="btn btn-outline-secondary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="open" {{ 'selected' if status == 'open' }}>Open</option>
+                        <option value="investigating" {{ 'selected' if status == 'investigating' }}>Investigating</option>
+                        <option value="resolved" {{ 'selected' if status == 'resolved' }}>Resolved</option>
+                        <option value="closed" {{ 'selected' if status == 'closed' }}>Closed</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="bi bi-exclamation-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ ncrs|selectattr('status', 'equalto', 'open')|list|length }}</div>
+                    <div class="stat-label">Open</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-search"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ ncrs|selectattr('status', 'equalto', 'investigating')|list|length }}</div>
+                    <div class="stat-label">Investigating</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ ncrs|selectattr('status', 'equalto', 'resolved')|list|length }}</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon secondary">
+                    <i class="bi bi-folder2"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ ncrs|length }}</div>
+                    <div class="stat-label">Total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NCR List -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>NCR #</th>
+                            <th>Date</th>
+                            <th>Item</th>
+                            <th>Type</th>
+                            <th class="text-end">Qty</th>
+                            <th>Status</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ncr in ncrs %}
+                        <tr>
+                            <td><strong>{{ ncr.ncr_number }}</strong></td>
+                            <td>{{ ncr.created_at.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                {% if ncr.item %}
+                                <a href="{{ url_for('inventory.item_detail', item_id=ncr.item_id) }}">
+                                    {{ ncr.item.sku }}
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ ncr.ncr_type|replace('_', ' ')|title if ncr.ncr_type else '-' }}</td>
+                            <td class="text-end">{{ ncr.quantity_affected or '-' }}</td>
+                            <td>
+                                <span class="status-badge status-{{ ncr.status }}">{{ ncr.status|title }}</span>
+                            </td>
+                            <td>{{ (ncr.description[:50] + '...') if ncr.description and ncr.description|length > 50 else ncr.description or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">No non-conformances found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

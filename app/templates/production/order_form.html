@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if order else 'New' }} Production Order{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1>{{ 'Edit Production Order' if order else 'New Production Order' }}</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" id="productionOrderForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <!-- Customer/Sales Order Section -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Link to Sales Order</label>
+                                <select class="form-select" name="sales_order_id" id="salesOrderSelect">
+                                    <option value="">None (Stock Build)</option>
+                                    {% for so in sales_orders %}
+                                    <option value="{{ so.id }}"
+                                            data-customer="{{ so.customer_id if so.customer else '' }}"
+                                            data-due="{{ so.required_date.strftime('%Y-%m-%d') if so.required_date else '' }}"
+                                            {% if (order and order.sales_order_id == so.id) or (prefill and prefill.get('sales_order_id') == so.id) %}selected{% endif %}>
+                                        {{ so.order_number }} - {{ so.customer.name if so.customer else 'No customer' }}
+                                        {% if so.required_date %}(Due: {{ so.required_date.strftime('%d/%m') }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Link this production to a customer order</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Customer</label>
+                                <select class="form-select" name="customer_id" id="customerSelect">
+                                    <option value="">No customer (Stock)</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}"
+                                            {% if (order and order.customer_id == customer.id) or (prefill and prefill.get('customer_id') == customer.id) %}selected{% endif %}>
+                                        {{ customer.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Item Selection with Search -->
+                        <div class="mb-3">
+                            <label class="form-label">Item to Produce *</label>
+                            <select class="form-select" name="item_id" id="itemSelect" required>
+                                <option value="">Select item...</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}"
+                                        data-mould="{{ item.default_mould_id or '' }}"
+                                        data-material="{{ item.material_grade or '' }}"
+                                        data-color="{{ item.color or '' }}"
+                                        {% if (order and order.item_id == item.id) or (prefill and prefill.get('item_id') == item.id) %}selected{% endif %}>
+                                    {{ item.sku }} - {{ item.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Item Details Display -->
+                        <div id="itemDetails" class="alert alert-light mb-3" style="display: none;">
+                            <div class="row small">
+                                <div class="col-6 col-md-3"><strong>Material:</strong> <span id="itemMaterial">-</span></div>
+                                <div class="col-6 col-md-3"><strong>Color:</strong> <span id="itemColor">-</span></div>
+                                <div class="col-6 col-md-3"><strong>Current Stock:</strong> <span id="itemStock">-</span></div>
+                                <div class="col-6 col-md-3"><strong>Default Mould:</strong> <span id="itemMould">-</span></div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Quantity Required *</label>
+                                <input type="number" class="form-control form-control-lg" name="quantity_required"
+                                       value="{{ order.quantity_required|int if order else (prefill.quantity if prefill else '') }}" min="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Due Date</label>
+                                <input type="date" class="form-control form-control-lg" name="due_date" id="dueDate"
+                                       value="{{ order.due_date.strftime('%Y-%m-%d') if order and order.due_date else (prefill.due_date.strftime('%Y-%m-%d') if prefill and prefill.get('due_date') else '') }}">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Mould</label>
+                                <select class="form-select" name="mould_id" id="mouldSelect">
+                                    <option value="">Auto-select based on item</option>
+                                    {% for mould in moulds %}
+                                    <option value="{{ mould.id }}" {% if order and order.mould_id == mould.id %}selected{% endif %}>
+                                        {{ mould.mould_number }} - {{ mould.name or '' }} ({{ mould.num_cavities or 1 }} cav)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Machine</label>
+                                <select class="form-select" name="machine_id">
+                                    <option value="">Assign later</option>
+                                    {% for machine in machines %}
+                                    <option value="{{ machine.id }}" {% if order and order.machine_id == machine.id %}selected{% endif %}>
+                                        {{ machine.name }} ({{ machine.tonnage }}T) - {{ machine.status|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Order Type</label>
+                                <select class="form-select" name="order_type">
+                                    <option value="make_to_order" {% if (order and order.order_type == 'make_to_order') or (prefill and prefill.get('sales_order_id')) %}selected{% endif %}>Make to Order (Customer Job)</option>
+                                    <option value="make_to_stock" {% if order and order.order_type == 'make_to_stock' %}selected{% endif %}>Make to Stock</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Priority</label>
+                                <select class="form-select" name="priority" id="prioritySelect">
+                                    <option value="1" {% if (order and order.priority == 1) or (prefill and prefill.get('priority') == 1) %}selected{% endif %}>1 - URGENT</option>
+                                    <option value="2" {% if (order and order.priority == 2) or (prefill and prefill.get('priority') == 2) %}selected{% endif %}>2 - High</option>
+                                    <option value="3" {% if (order and order.priority == 3) or (prefill and prefill.get('priority') == 3) %}selected{% endif %}>3 - Medium-High</option>
+                                    <option value="4" {% if order and order.priority == 4 %}selected{% endif %}>4 - Medium</option>
+                                    <option value="5" {% if (order and order.priority == 5) or (not order and not prefill) %}selected{% endif %}>5 - Normal</option>
+                                    <option value="6" {% if order and order.priority == 6 %}selected{% endif %}>6 - Low</option>
+                                    <option value="7" {% if order and order.priority == 7 %}selected{% endif %}>7 - When Available</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes / Special Instructions</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Any special requirements, color matching notes, packaging instructions...">{{ order.notes if order else '' }}</textarea>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-lg me-1"></i> {{ 'Update' if order else 'Create' }} Order
+                            </button>
+                            <button type="submit" name="create_and_schedule" value="1" class="btn btn-success btn-lg">
+                                <i class="bi bi-calendar-plus me-1"></i> Create & Schedule
+                            </button>
+                            <a href="{{ url_for('production.order_list') }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Reference Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Quick Reference
+                </div>
+                <div class="card-body">
+                    <div class="row small">
+                        <div class="col-md-6">
+                            <h6>Priority Guide</h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><span class="badge bg-danger">1</span> URGENT - Due today/tomorrow</li>
+                                <li><span class="badge bg-warning text-dark">2-3</span> High - Due within 3-7 days</li>
+                                <li><span class="badge bg-primary">4-5</span> Normal - Standard lead time</li>
+                                <li><span class="badge bg-secondary">6-7</span> Low - Fit in when available</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Tips</h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="bi bi-check text-success"></i> Link to sales order for tracking</li>
+                                <li><i class="bi bi-check text-success"></i> Due date auto-sets from sales order</li>
+                                <li><i class="bi bi-check text-success"></i> Mould auto-selects from item default</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const salesOrderSelect = document.getElementById('salesOrderSelect');
+    const customerSelect = document.getElementById('customerSelect');
+    const itemSelect = document.getElementById('itemSelect');
+    const mouldSelect = document.getElementById('mouldSelect');
+    const dueDate = document.getElementById('dueDate');
+    const prioritySelect = document.getElementById('prioritySelect');
+    const itemDetails = document.getElementById('itemDetails');
+
+    // When sales order changes, update customer and due date
+    salesOrderSelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        if (selected.value) {
+            const customerId = selected.dataset.customer;
+            const due = selected.dataset.due;
+
+            if (customerId) {
+                customerSelect.value = customerId;
+            }
+            if (due) {
+                dueDate.value = due;
+                // Auto-set priority based on due date
+                const dueDate_ = new Date(due);
+                const today = new Date();
+                const daysDiff = Math.ceil((dueDate_ - today) / (1000 * 60 * 60 * 24));
+
+                if (daysDiff <= 1) prioritySelect.value = '1';
+                else if (daysDiff <= 3) prioritySelect.value = '2';
+                else if (daysDiff <= 7) prioritySelect.value = '3';
+                else prioritySelect.value = '5';
+            }
+        }
+    });
+
+    // When item changes, show details and auto-select mould
+    itemSelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        if (selected.value) {
+            const mouldId = selected.dataset.mould;
+            const material = selected.dataset.material || '-';
+            const color = selected.dataset.color || '-';
+
+            document.getElementById('itemMaterial').textContent = material;
+            document.getElementById('itemColor').textContent = color;
+            document.getElementById('itemStock').textContent = 'Loading...';
+            document.getElementById('itemMould').textContent = mouldId ? 'Will auto-select' : 'None set';
+
+            itemDetails.style.display = 'block';
+
+            // Fetch current stock
+            fetch('/inventory/api/item/' + selected.value + '/stock')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('itemStock').textContent = data.total_stock || 0;
+                })
+                .catch(() => {
+                    document.getElementById('itemStock').textContent = '-';
+                });
+
+            // Auto-select mould if not already selected
+            if (mouldId && !mouldSelect.value) {
+                mouldSelect.value = mouldId;
+            }
+        } else {
+            itemDetails.style.display = 'none';
+        }
+    });
+
+    // Trigger item change if pre-selected
+    if (itemSelect.value) {
+        itemSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

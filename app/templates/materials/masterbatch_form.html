@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if masterbatch else 'New' }} Masterbatch{% endblock %}
+{% block mobile_title %}{{ 'Edit' if masterbatch else 'New' }} Masterbatch{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+    <!-- Header -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('materials.material_list') }}">Materials</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('materials.masterbatch_list') }}">Masterbatches</a></li>
+                <li class="breadcrumb-item active">{{ 'Edit' if masterbatch else 'New' }}</li>
+            </ol>
+        </nav>
+        <h4 class="mb-0">{{ 'Edit Masterbatch: ' + masterbatch.code if masterbatch else 'New Masterbatch' }}</h4>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Basic Info -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Masterbatch Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Code <span class="text-danger">*</span></label>
+                                <input type="text" name="code" class="form-control text-uppercase"
+                                       value="{{ masterbatch.code if masterbatch else '' }}"
+                                       {% if masterbatch %}readonly{% else %}required{% endif %}
+                                       placeholder="e.g., MB-BLK-01">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" required
+                                       value="{{ masterbatch.name if masterbatch else '' }}"
+                                       placeholder="e.g., Black Carbon Masterbatch">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Type <span class="text-danger">*</span></label>
+                                <select name="masterbatch_type" class="form-select" required>
+                                    <option value="">Select type...</option>
+                                    {% for t in ['Colour', 'UV Stabilizer', 'Antistatic', 'Flame Retardant', 'Slip Agent', 'Other'] %}
+                                    <option value="{{ t }}" {% if masterbatch and masterbatch.masterbatch_type == t %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Colour Name</label>
+                                <input type="text" name="color" class="form-control"
+                                       value="{{ masterbatch.color if masterbatch else '' }}"
+                                       placeholder="e.g., Jet Black">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Colour Hex</label>
+                                <div class="input-group">
+                                    <input type="color" name="color_hex" class="form-control form-control-color"
+                                           value="{{ masterbatch.color_hex if masterbatch and masterbatch.color_hex else '#000000' }}"
+                                           style="width: 50px;">
+                                    <input type="text" class="form-control" id="color_hex_text"
+                                           value="{{ masterbatch.color_hex if masterbatch else '#000000' }}"
+                                           pattern="^#[0-9A-Fa-f]{6}$" placeholder="#000000">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supplier</label>
+                                <select name="supplier_id" class="form-select">
+                                    <option value="">Select supplier...</option>
+                                    {% for s in suppliers %}
+                                    <option value="{{ s.id }}" {% if masterbatch and masterbatch.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supplier Code</label>
+                                <input type="text" name="supplier_code" class="form-control"
+                                       value="{{ masterbatch.supplier_code if masterbatch else '' }}"
+                                       placeholder="Supplier's product code">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing & Usage -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Pricing & Usage</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Cost per kg (£) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">£</span>
+                                    <input type="number" name="cost_per_kg" step="0.01" class="form-control" required
+                                           value="{{ masterbatch.cost_per_kg if masterbatch else '' }}"
+                                           placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Typical Loading (%)</label>
+                                <div class="input-group">
+                                    <input type="number" name="typical_loading_percent" step="0.1" class="form-control"
+                                           value="{{ masterbatch.typical_loading_percent if masterbatch else '' }}"
+                                           placeholder="e.g., 2">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Recommended ratio with base material</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Current Stock (kg)</label>
+                                <input type="number" name="current_stock_kg" step="0.1" class="form-control"
+                                       value="{{ masterbatch.current_stock_kg if masterbatch else '' }}"
+                                       placeholder="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Compatible Base Materials</label>
+                                <input type="text" name="compatible_materials" class="form-control"
+                                       value="{{ masterbatch.compatible_materials if masterbatch else '' }}"
+                                       placeholder="e.g., PP, PE, HDPE">
+                                <small class="text-muted">Comma-separated list</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Minimum Stock (kg)</label>
+                                <input type="number" name="min_stock_kg" step="0.1" class="form-control"
+                                       value="{{ masterbatch.min_stock_kg if masterbatch else '' }}"
+                                       placeholder="Alert when below">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <textarea name="notes" class="form-control" rows="2"
+                                          placeholder="Additional notes...">{{ masterbatch.notes if masterbatch else '' }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                                           {% if not masterbatch or masterbatch.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> {{ 'Update Masterbatch' if masterbatch else 'Create Masterbatch' }}
+                    </button>
+                    <a href="{{ url_for('materials.masterbatch_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6><i class="bi bi-lightbulb text-warning"></i> Tips</h6>
+                    <ul class="small text-muted mb-0">
+                        <li class="mb-2">Typical loading for colour masterbatches is 1-3%</li>
+                        <li class="mb-2">UV stabilizers typically use 0.5-2%</li>
+                        <li class="mb-2">Always check compatibility with base material</li>
+                        <li>Cost is calculated: base cost × (100-ratio%) + MB cost × ratio%</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sync color picker with hex input
+document.addEventListener('DOMContentLoaded', function() {
+    const colorPicker = document.querySelector('input[name="color_hex"]');
+    const colorText = document.getElementById('color_hex_text');
+
+    colorPicker.addEventListener('input', function() {
+        colorText.value = this.value;
+    });
+
+    colorText.addEventListener('input', function() {
+        if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) {
+            colorPicker.value = this.value;
+        }
+    });
+});
+</script>
+{% endblock %}

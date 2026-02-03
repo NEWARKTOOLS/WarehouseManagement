@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Sheets{% endblock %}
+{% block mobile_title %}Setup Sheets{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-file-earmark-text me-2"></i>Setup Sheets</h1>
+        <a href="{{ url_for('production.setup_sheet_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">New Setup Sheet</span>
+        </a>
+    </div>
+
+    <!-- Search -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="searchInput" placeholder="Search by item, mould, or material...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Sheet List -->
+    <div class="row g-3" id="setupSheetGrid">
+        {% for sheet in setup_sheets %}
+        <div class="col-md-6 col-lg-4 setup-sheet-card" 
+             data-search="{{ sheet.item.sku|lower }} {{ sheet.item.name|lower }} {{ sheet.mould.mould_number|lower }} {{ sheet.material_type|lower if sheet.material_type else '' }}">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>{{ sheet.item.sku }}</strong>
+                    <span class="badge bg-secondary">v{{ sheet.version }}</span>
+                </div>
+                <div class="card-body">
+                    <h6>{{ sheet.item.name }}</h6>
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted">Mould</td>
+                            <td class="text-end">{{ sheet.mould.mould_number }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Material</td>
+                            <td class="text-end">{{ sheet.material_type or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cycle Time</td>
+                            <td class="text-end">{{ sheet.cycle_time or '-' }}s</td>
+                        </tr>
+                        {% if sheet.color %}
+                        <tr>
+                            <td class="text-muted">Color</td>
+                            <td class="text-end">{{ sheet.color }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('production.setup_sheet_view', setup_sheet_id=sheet.id) }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-eye"></i> View Full Sheet
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="empty-state py-5">
+                <i class="bi bi-file-earmark-text"></i>
+                <p>No setup sheets created yet</p>
+                <a href="{{ url_for('production.setup_sheet_create') }}" class="btn btn-primary">Create First Setup Sheet</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    document.querySelectorAll('.setup-sheet-card').forEach(card => {
+        const text = card.dataset.search;
+        card.style.display = text.includes(search) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

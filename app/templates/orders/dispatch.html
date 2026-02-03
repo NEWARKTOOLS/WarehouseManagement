@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Dispatch Order {{ order.order_number }}{% endblock %}
+{% block mobile_title %}Dispatch{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('orders.order_list') }}">Orders</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('orders.order_detail', order_id=order.id) }}">{{ order.order_number }}</a></li>
+                    <li class="breadcrumb-item active">Dispatch</li>
+                </ol>
+            </nav>
+            <h1>Dispatch Order</h1>
+        </div>
+    </div>
+
+    <form method="POST" id="dispatchForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Items to Dispatch -->
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Items to Dispatch</span>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="shipAll" checked onchange="toggleShipAll()">
+                            <label class="form-check-label" for="shipAll">Ship All Available</label>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-center">Ordered</th>
+                                    <th class="text-center">Already Shipped</th>
+                                    <th class="text-center">Remaining</th>
+                                    <th class="text-center">In Stock</th>
+                                    <th class="text-center" style="width: 120px;">Ship Now</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in order.lines %}
+                                {% set remaining = line.quantity_ordered - line.quantity_shipped %}
+                                {% set available = line.item.total_stock %}
+                                {% set max_to_ship = [remaining, available]|min %}
+                                <tr class="{{ 'table-warning' if available < remaining else '' }}">
+                                    <td>
+                                        <strong>{{ line.item.sku }}</strong>
+                                        <br><small class="text-muted">{{ line.item.name }}</small>
+                                    </td>
+                                    <td class="text-center">{{ line.quantity_ordered|int }}</td>
+                                    <td class="text-center">
+                                        {% if line.quantity_shipped > 0 %}
+                                        <span class="badge bg-success">{{ line.quantity_shipped|int }}</span>
+                                        {% else %}
+                                        <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if remaining > 0 %}
+                                        <span class="badge bg-primary">{{ remaining|int }}</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Complete</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {{ available|int }}
+                                        {% if available < remaining %}
+                                        <br><small class="text-danger">Short {{ (remaining - available)|int }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if remaining > 0 %}
+                                        <input type="number" class="form-control form-control-sm text-center ship-qty"
+                                               name="qty_{{ line.id }}"
+                                               value="{{ max_to_ship|int if max_to_ship > 0 else 0 }}"
+                                               min="0" max="{{ remaining|int }}"
+                                               data-max="{{ remaining|int }}"
+                                               data-available="{{ available|int }}">
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Dispatch Form -->
+                <div class="card">
+                    <div class="card-header">Dispatch Details</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Delivery Method</label>
+                                <select class="form-select" name="delivery_method">
+                                    <option value="collection" {{ 'selected' if order.delivery_method == 'collection' }}>Collection</option>
+                                    <option value="courier" {{ 'selected' if order.delivery_method == 'courier' }}>Courier</option>
+                                    <option value="own_vehicle" {{ 'selected' if order.delivery_method == 'own_vehicle' }}>Own Vehicle</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Carrier/Driver</label>
+                                <input type="text" class="form-control" name="carrier" placeholder="e.g., DPD, UPS, or driver name">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Tracking Number</label>
+                                <input type="text" class="form-control" name="tracking_number" placeholder="If applicable">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Number of Packages</label>
+                                <input type="number" class="form-control" name="num_packages" value="1" min="1">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Total Weight (kg)</label>
+                                <input type="number" class="form-control" name="total_weight" step="0.1" min="0">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" name="notes" rows="2" placeholder="Any dispatch notes..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-3" id="partialAlert" style="display: none;">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Partial Shipment:</strong> You are not shipping all items. The order will remain open for the remaining quantities.
+                        </div>
+
+                        <div class="alert alert-warning mt-3">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> Dispatching will deduct stock from inventory.
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-truck me-1"></i> Confirm Dispatch
+                            </button>
+                            <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Delivery Address -->
+                <div class="card mb-3">
+                    <div class="card-header">Delivery To</div>
+                    <div class="card-body">
+                        <h6>{{ order.customer.name }}</h6>
+                        <address class="mb-0">
+                            {% if order.delivery_address_line1 %}{{ order.delivery_address_line1 }}<br>{% endif %}
+                            {% if order.delivery_address_line2 %}{{ order.delivery_address_line2 }}<br>{% endif %}
+                            {% if order.delivery_city %}{{ order.delivery_city }}<br>{% endif %}
+                            {% if order.delivery_postcode %}{{ order.delivery_postcode }}<br>{% endif %}
+                            {% if order.delivery_country %}{{ order.delivery_country }}{% endif %}
+                        </address>
+                    </div>
+                </div>
+
+                <!-- Previous Deliveries -->
+                {% if order.deliveries.count() > 0 %}
+                <div class="card mb-3">
+                    <div class="card-header">Previous Deliveries</div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Delivery</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery in order.deliveries %}
+                                <tr>
+                                    <td>{{ delivery.delivery_number }}</td>
+                                    <td>{{ delivery.dispatch_date.strftime('%d/%m/%y') if delivery.dispatch_date else '-' }}</td>
+                                    <td><span class="badge bg-{{ 'success' if delivery.status == 'delivered' else 'info' }}">{{ delivery.status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">Quick Actions</div>
+                    <div class="card-body">
+                        <a href="{{ url_for('orders.packing_list', order_id=order.id) }}" target="_blank" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="bi bi-file-pdf me-1"></i> Print Packing List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleShipAll() {
+    const shipAll = document.getElementById('shipAll').checked;
+    document.querySelectorAll('.ship-qty').forEach(input => {
+        if (shipAll) {
+            // Ship max available (capped at remaining)
+            const max = parseInt(input.dataset.max) || 0;
+            const available = parseInt(input.dataset.available) || 0;
+            input.value = Math.min(max, available);
+        } else {
+            input.value = 0;
+        }
+        checkPartial();
+    });
+}
+
+function checkPartial() {
+    let isPartial = false;
+    document.querySelectorAll('.ship-qty').forEach(input => {
+        const max = parseInt(input.dataset.max) || 0;
+        const qty = parseInt(input.value) || 0;
+        if (qty < max && qty >= 0) {
+            isPartial = true;
+        }
+    });
+    document.getElementById('partialAlert').style.display = isPartial ? 'block' : 'none';
+}
+
+// Add event listeners to quantity inputs
+document.querySelectorAll('.ship-qty').forEach(input => {
+    input.addEventListener('change', function() {
+        // Uncheck "Ship All" when manually changing quantities
+        document.getElementById('shipAll').checked = false;
+        checkPartial();
+    });
+});
+
+// Initial check
+checkPartial();
+</script>
+{% endblock %}

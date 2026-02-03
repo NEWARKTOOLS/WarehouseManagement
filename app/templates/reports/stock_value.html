@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Valuation Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Stock Value</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-currency-pound me-2"></i>Stock Valuation</h1>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="bi bi-currency-pound"></i>
+                </div>
+                <div>
+                    <div class="stat-value">&pound;{{ "{:,.2f}".format(total_value) }}</div>
+                    <div class="stat-label">Total Stock Value</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ item_values|length }}</div>
+                    <div class="stat-label">Items in Stock</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <div>
+                    <div class="stat-value">&pound;{{ "{:,.2f}".format(total_value / item_values|length if item_values else 0) }}</div>
+                    <div class="stat-label">Avg Value per Item</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Values -->
+    <div class="card">
+        <div class="card-header">
+            Stock Value by Item (sorted by value)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Description</th>
+                            <th class="text-end">Quantity</th>
+                            <th class="text-end">Unit Cost</th>
+                            <th class="text-end">Total Value</th>
+                            <th class="text-end">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in item_values %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('inventory.item_detail', item_id=data.item.id) }}">
+                                    <strong>{{ data.item.sku }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ data.item.description or '-' }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(data.quantity) }} {{ data.item.unit_of_measure }}</td>
+                            <td class="text-end">&pound;{{ "{:,.4f}".format(data.unit_cost) }}</td>
+                            <td class="text-end fw-bold">&pound;{{ "{:,.2f}".format(data.value) }}</td>
+                            <td class="text-end">
+                                {{ "{:.1f}".format(data.value / total_value * 100 if total_value else 0) }}%
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No stock with value found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if item_values %}
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="4">Total</th>
+                            <th class="text-end">&pound;{{ "{:,.2f}".format(total_value) }}</th>
+                            <th class="text-end">100%</th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

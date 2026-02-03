@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if customer else 'New' }} Customer{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1>{{ 'Edit Customer' if customer else 'New Customer' }}</h1>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Basic Info -->
+                <div class="card mb-3">
+                    <div class="card-header">Basic Information</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Company Name *</label>
+                                <input type="text" class="form-control" name="name" value="{{ customer.name if customer else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Contact Name</label>
+                                <input type="text" class="form-control" name="contact_name" value="{{ customer.contact_name if customer else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" value="{{ customer.email if customer else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                <input type="text" class="form-control" name="phone" value="{{ customer.phone if customer else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">VAT Number</label>
+                                <input type="text" class="form-control" name="tax_number" value="{{ customer.tax_number if customer else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div class="card mb-3">
+                    <div class="card-header">Address</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <input type="text" class="form-control" name="address_line1" value="{{ customer.address_line1 if customer else '' }}" placeholder="Address Line 1">
+                            </div>
+                            <div class="col-12">
+                                <input type="text" class="form-control" name="address_line2" value="{{ customer.address_line2 if customer else '' }}" placeholder="Address Line 2">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="city" value="{{ customer.city if customer else '' }}" placeholder="City">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="county" value="{{ customer.county if customer else '' }}" placeholder="County">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="postcode" value="{{ customer.postcode if customer else '' }}" placeholder="Postcode">
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" name="country" value="{{ customer.country if customer else 'United Kingdom' }}" placeholder="Country">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Special Requirements -->
+                <div class="card mb-3">
+                    <div class="card-header">Special Requirements</div>
+                    <div class="card-body">
+                        <textarea class="form-control" name="special_requirements" rows="3">{{ customer.special_requirements if customer else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Business Settings -->
+                <div class="card mb-3">
+                    <div class="card-header">Business Settings</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Credit Terms (days)</label>
+                            <input type="number" class="form-control" name="credit_terms" value="{{ customer.credit_terms if customer else 30 }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Credit Limit (&pound;)</label>
+                            <input type="number" class="form-control" name="credit_limit" step="0.01" value="{{ customer.credit_limit if customer and customer.credit_limit else '' }}">
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_jit" id="isJit" {{ 'checked' if customer and customer.is_jit else '' }}>
+                            <label class="form-check-label" for="isJit">JIT Customer (Priority)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card">
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            <i class="bi bi-check-lg me-1"></i> {{ 'Update' if customer else 'Create' }} Customer
+                        </button>
+                        <a href="{{ url_for('customers.customer_list') }}" class="btn btn-outline-secondary w-100">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
