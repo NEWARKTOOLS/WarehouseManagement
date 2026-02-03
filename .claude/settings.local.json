@@ -8,7 +8,14 @@
       "Bash(sqlite3:*)",
       "WebFetch(domain:www.atpm.uk)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial WMS commit - full warehouse management system\n\nFeatures:\n- Inventory management with barcode support\n- Customer and order management\n- Production scheduling with drag-and-drop\n- Mould management and maintenance tracking\n- Materials system with suppliers and pricing\n- Quoting with PDF export \\(customer/internal versions\\)\n- Business intelligence dashboard\n- OEE tracking\n- CSV import/export and backup system\n- Docker deployment with auto-update scripts\n- Mobile-friendly PWA interface\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(echo \"Please run these commands with your info:\n\ngit config --global user.email \"\"your-email@example.com\"\"\ngit config --global user.name \"\"Your Name\"\"\n\nThen I''ll complete the push for you.\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

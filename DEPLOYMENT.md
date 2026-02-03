@@ -59,7 +59,7 @@ echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
 ### 3. Build and run with Docker
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### 4. Access the app
