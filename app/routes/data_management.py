@@ -26,9 +26,9 @@ CSV_TEMPLATES = {
     'customers': {
         'name': 'Customers',
         'filename': 'customers_template.csv',
-        'headers': ['code', 'name', 'contact_name', 'email', 'phone', 'address', 'city', 'postcode', 'country', 'payment_terms', 'notes'],
-        'required': ['name'],
-        'example': ['CUST001', 'Acme Manufacturing Ltd', 'John Smith', 'john@acme.com', '01onal 123456', '123 Industrial Way', 'Birmingham', 'B1 1AA', 'UK', 'Net 30', 'Good customer']
+        'headers': ['customer_code', 'name', 'contact_name', 'email', 'phone', 'address_line1', 'address_line2', 'city', 'postcode', 'country', 'credit_terms', 'notes'],
+        'required': ['customer_code', 'name'],
+        'example': ['CUST001', 'Acme Manufacturing Ltd', 'John Smith', 'john@acme.com', '01onal 123456', '123 Industrial Way', '', 'Birmingham', 'B1 1AA', 'UK', '30', 'Good customer']
     },
     'materials': {
         'name': 'Materials',
@@ -47,37 +47,37 @@ CSV_TEMPLATES = {
     'masterbatches': {
         'name': 'Masterbatches',
         'filename': 'masterbatches_template.csv',
-        'headers': ['code', 'name', 'masterbatch_type', 'color', 'color_hex', 'cost_per_kg', 'typical_loading_percent', 'compatible_materials', 'supplier_code', 'min_stock_kg', 'notes'],
-        'required': ['code', 'name', 'masterbatch_type', 'cost_per_kg'],
-        'example': ['MB-BLK-01', 'Carbon Black Masterbatch', 'Colour', 'Black', '#000000', '8.50', '3', 'PP,PE,HDPE', 'CABOT-BK40', '25', 'Standard black for PP']
+        'headers': ['code', 'name', 'color', 'color_code', 'cost_per_kg', 'typical_ratio_percent', 'compatible_materials', 'supplier_code', 'min_stock_kg', 'notes'],
+        'required': ['code', 'name', 'cost_per_kg'],
+        'example': ['MB-BLK-01', 'Carbon Black Masterbatch', 'Black', 'RAL 9005', '8.50', '3', 'PP,PE,HDPE', 'CABOT-BK40', '25', 'Standard black for PP']
     },
     'moulds': {
         'name': 'Moulds',
         'filename': 'moulds_template.csv',
-        'headers': ['mould_number', 'name', 'num_cavities', 'material_type', 'runner_type', 'customer_code', 'machine_tonnage_required', 'cycle_time_target', 'status', 'location', 'notes'],
+        'headers': ['mould_number', 'name', 'num_cavities', 'material_compatibility', 'tonnage_required', 'cycle_time_seconds', 'status', 'storage_location', 'notes'],
         'required': ['mould_number', 'num_cavities'],
-        'example': ['M001', 'Widget Housing', '4', 'PP', 'cold', 'CUST001', '150', '25', 'active', 'Tool Store A', 'Single cavity prototype']
+        'example': ['M001', 'Widget Housing', '4', 'PP', '150', '25', 'available', 'Tool Store A', 'Single cavity prototype']
     },
     'machines': {
         'name': 'Machines',
         'filename': 'machines_template.csv',
-        'headers': ['code', 'name', 'machine_type', 'manufacturer', 'model', 'tonnage', 'shot_size_g', 'screw_diameter_mm', 'max_mould_width_mm', 'max_mould_height_mm', 'hourly_rate', 'status', 'notes'],
-        'required': ['code', 'name'],
-        'example': ['INJ-01', 'Borche 80T', 'injection', 'Borche', 'BH-80', '80', '150', '35', '400', '400', '45', 'available', 'Small parts machine']
+        'headers': ['machine_code', 'name', 'manufacturer', 'model', 'tonnage', 'status', 'notes'],
+        'required': ['machine_code', 'name'],
+        'example': ['INJ-01', 'Borche 80T', 'Borche', 'BH-80', '80', 'idle', 'Small parts machine']
     },
     'locations': {
         'name': 'Locations',
         'filename': 'locations_template.csv',
-        'headers': ['code', 'name', 'zone', 'location_type', 'is_pickable', 'is_receivable', 'max_weight_kg', 'notes'],
-        'required': ['code', 'name'],
-        'example': ['A-01-01', 'Aisle A Row 1 Level 1', 'A', 'rack', 'TRUE', 'TRUE', '500', 'Standard pallet location']
+        'headers': ['code', 'name', 'zone', 'location_type', 'max_capacity', 'notes'],
+        'required': ['code', 'name', 'location_type'],
+        'example': ['CON1-R01-B01', 'Container 1 Row 1 Bay 1', 'CON1', 'container', '10', 'Standard pallet location']
     },
     'items': {
         'name': 'Inventory Items (Parts)',
         'filename': 'items_template.csv',
-        'headers': ['sku', 'name', 'description', 'item_type', 'customer_code', 'unit_of_measure', 'part_weight_grams', 'runner_weight_grams', 'cavities', 'cycle_time_seconds', 'material_code', 'masterbatch_code', 'masterbatch_ratio', 'material_cost_per_kg', 'mould_number', 'color', 'min_stock_level', 'unit_cost', 'selling_price', 'notes'],
+        'headers': ['sku', 'name', 'description', 'item_type', 'customer_code', 'unit_of_measure', 'part_weight_grams', 'runner_weight_grams', 'cavities', 'cycle_time_seconds', 'material_cost_per_kg', 'mould_number', 'color', 'min_stock_level', 'unit_cost', 'selling_price', 'notes'],
         'required': ['sku', 'name'],
-        'example': ['WIDGET-001', 'Widget Housing Blue', 'Injection moulded widget housing', 'finished_goods', 'CUST001', 'parts', '45.5', '12', '4', '22', 'PP-H450', 'MB-BLU-01', '3', '2.50', 'M001', 'Blue', '1000', '0.15', '0.35', 'Main production item']
+        'example': ['WIDGET-001', 'Widget Housing Blue', 'Injection moulded widget housing', 'finished_goods', 'CUST001', 'parts', '45.5', '12', '4', '22', '2.50', 'M001', 'Blue', '1000', '0.15', '0.35', 'Main production item']
     },
     'categories': {
         'name': 'Categories',
@@ -295,43 +295,42 @@ def import_customer(row, result):
     if not name:
         raise ValueError("Name is required")
 
-    code = row.get('code', '').strip().upper() or None
+    customer_code = row.get('customer_code', '').strip().upper() or None
+    if not customer_code:
+        raise ValueError("Customer code is required")
 
     # Check for existing
-    existing = None
-    if code:
-        existing = Customer.query.filter_by(code=code).first()
-    if not existing:
-        existing = Customer.query.filter_by(name=name).first()
+    existing = Customer.query.filter_by(customer_code=customer_code).first()
 
     if existing:
         # Update
         existing.name = name
-        existing.code = code or existing.code
         existing.contact_name = row.get('contact_name', '').strip() or existing.contact_name
         existing.email = row.get('email', '').strip() or existing.email
         existing.phone = row.get('phone', '').strip() or existing.phone
-        existing.address = row.get('address', '').strip() or existing.address
+        existing.address_line1 = row.get('address_line1', '').strip() or existing.address_line1
+        existing.address_line2 = row.get('address_line2', '').strip() or existing.address_line2
         existing.city = row.get('city', '').strip() or existing.city
         existing.postcode = row.get('postcode', '').strip() or existing.postcode
         existing.country = row.get('country', '').strip() or existing.country
-        existing.payment_terms = row.get('payment_terms', '').strip() or existing.payment_terms
-        existing.notes = row.get('notes', '').strip() or existing.notes
+        existing.credit_terms = int(row.get('credit_terms') or 0) or existing.credit_terms
+        existing.special_requirements = row.get('notes', '').strip() or existing.special_requirements
         result['updated'] += 1
     else:
         # Create
         customer = Customer(
-            code=code,
+            customer_code=customer_code,
             name=name,
             contact_name=row.get('contact_name', '').strip() or None,
             email=row.get('email', '').strip() or None,
             phone=row.get('phone', '').strip() or None,
-            address=row.get('address', '').strip() or None,
+            address_line1=row.get('address_line1', '').strip() or None,
+            address_line2=row.get('address_line2', '').strip() or None,
             city=row.get('city', '').strip() or None,
             postcode=row.get('postcode', '').strip() or None,
-            country=row.get('country', '').strip() or 'UK',
-            payment_terms=row.get('payment_terms', '').strip() or None,
-            notes=row.get('notes', '').strip() or None
+            country=row.get('country', '').strip() or 'United Kingdom',
+            credit_terms=int(row.get('credit_terms') or 30) or 30,
+            special_requirements=row.get('notes', '').strip() or None
         )
         db.session.add(customer)
         result['created'] += 1
@@ -455,11 +454,10 @@ def import_masterbatch(row, result):
     """Import a masterbatch record"""
     code = row.get('code', '').strip().upper()
     name = row.get('name', '').strip()
-    mb_type = row.get('masterbatch_type', '').strip()
     cost = row.get('cost_per_kg', '').strip()
 
-    if not code or not name or not mb_type or not cost:
-        raise ValueError("Code, name, masterbatch_type, and cost_per_kg are required")
+    if not code or not name or not cost:
+        raise ValueError("Code, name, and cost_per_kg are required")
 
     cost_per_kg = float(cost)
 
@@ -467,11 +465,10 @@ def import_masterbatch(row, result):
 
     if existing:
         existing.name = name
-        existing.masterbatch_type = mb_type
         existing.color = row.get('color', '').strip() or existing.color
-        existing.color_hex = row.get('color_hex', '').strip() or existing.color_hex
+        existing.color_code = row.get('color_code', '').strip() or existing.color_code
         existing.cost_per_kg = cost_per_kg
-        existing.typical_loading_percent = float(row.get('typical_loading_percent') or 0) or existing.typical_loading_percent
+        existing.typical_ratio_percent = float(row.get('typical_ratio_percent') or 0) or existing.typical_ratio_percent
         existing.compatible_materials = row.get('compatible_materials', '').strip() or existing.compatible_materials
         existing.supplier_code = row.get('supplier_code', '').strip() or existing.supplier_code
         existing.min_stock_kg = float(row.get('min_stock_kg') or 0) or existing.min_stock_kg
@@ -481,11 +478,10 @@ def import_masterbatch(row, result):
         masterbatch = Masterbatch(
             code=code,
             name=name,
-            masterbatch_type=mb_type,
             color=row.get('color', '').strip() or None,
-            color_hex=row.get('color_hex', '').strip() or None,
+            color_code=row.get('color_code', '').strip() or None,
             cost_per_kg=cost_per_kg,
-            typical_loading_percent=float(row.get('typical_loading_percent') or 0) or None,
+            typical_ratio_percent=float(row.get('typical_ratio_percent') or 3) or 3,
             compatible_materials=row.get('compatible_materials', '').strip() or None,
             supplier_code=row.get('supplier_code', '').strip() or None,
             min_stock_kg=float(row.get('min_stock_kg') or 0) or None,
@@ -503,26 +499,16 @@ def import_mould(row, result):
     if not mould_number or not num_cavities:
         raise ValueError("Mould number and num_cavities are required")
 
-    # Look up customer by code
-    customer_id = None
-    customer_code = row.get('customer_code', '').strip().upper()
-    if customer_code:
-        customer = Customer.query.filter_by(code=customer_code).first()
-        if customer:
-            customer_id = customer.id
-
     existing = Mould.query.filter_by(mould_number=mould_number).first()
 
     if existing:
         existing.name = row.get('name', '').strip() or existing.name
         existing.num_cavities = int(num_cavities)
-        existing.material_type = row.get('material_type', '').strip() or existing.material_type
-        existing.runner_type = row.get('runner_type', '').strip() or existing.runner_type
-        existing.customer_id = customer_id or existing.customer_id
-        existing.machine_tonnage_required = int(row.get('machine_tonnage_required') or 0) or existing.machine_tonnage_required
-        existing.cycle_time_target = float(row.get('cycle_time_target') or 0) or existing.cycle_time_target
+        existing.material_compatibility = row.get('material_compatibility', '').strip() or existing.material_compatibility
+        existing.tonnage_required = int(row.get('tonnage_required') or 0) or existing.tonnage_required
+        existing.cycle_time_seconds = float(row.get('cycle_time_seconds') or 0) or existing.cycle_time_seconds
         existing.status = row.get('status', '').strip() or existing.status
-        existing.location = row.get('location', '').strip() or existing.location
+        existing.storage_location = row.get('storage_location', '').strip() or existing.storage_location
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
     else:
@@ -530,13 +516,11 @@ def import_mould(row, result):
             mould_number=mould_number,
             name=row.get('name', '').strip() or None,
             num_cavities=int(num_cavities),
-            material_type=row.get('material_type', '').strip() or None,
-            runner_type=row.get('runner_type', '').strip() or 'cold',
-            customer_id=customer_id,
-            machine_tonnage_required=int(row.get('machine_tonnage_required') or 0) or None,
-            cycle_time_target=float(row.get('cycle_time_target') or 0) or None,
-            status=row.get('status', '').strip() or 'active',
-            location=row.get('location', '').strip() or None,
+            material_compatibility=row.get('material_compatibility', '').strip() or None,
+            tonnage_required=int(row.get('tonnage_required') or 0) or None,
+            cycle_time_seconds=float(row.get('cycle_time_seconds') or 0) or None,
+            status=row.get('status', '').strip() or 'available',
+            storage_location=row.get('storage_location', '').strip() or None,
             notes=row.get('notes', '').strip() or None
         )
         db.session.add(mould)
@@ -545,42 +529,30 @@ def import_mould(row, result):
 
 def import_machine(row, result):
     """Import a machine record"""
-    code = row.get('code', '').strip().upper()
+    machine_code = row.get('machine_code', '').strip().upper()
     name = row.get('name', '').strip()
 
-    if not code or not name:
-        raise ValueError("Code and name are required")
+    if not machine_code or not name:
+        raise ValueError("Machine code and name are required")
 
-    existing = Machine.query.filter_by(code=code).first()
+    existing = Machine.query.filter_by(machine_code=machine_code).first()
 
     if existing:
         existing.name = name
-        existing.machine_type = row.get('machine_type', '').strip() or existing.machine_type
         existing.manufacturer = row.get('manufacturer', '').strip() or existing.manufacturer
         existing.model = row.get('model', '').strip() or existing.model
         existing.tonnage = int(row.get('tonnage') or 0) or existing.tonnage
-        existing.shot_size_g = float(row.get('shot_size_g') or 0) or existing.shot_size_g
-        existing.screw_diameter_mm = float(row.get('screw_diameter_mm') or 0) or existing.screw_diameter_mm
-        existing.max_mould_width_mm = float(row.get('max_mould_width_mm') or 0) or existing.max_mould_width_mm
-        existing.max_mould_height_mm = float(row.get('max_mould_height_mm') or 0) or existing.max_mould_height_mm
-        existing.hourly_rate = float(row.get('hourly_rate') or 0) or existing.hourly_rate
         existing.status = row.get('status', '').strip() or existing.status
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
     else:
         machine = Machine(
-            code=code,
+            machine_code=machine_code,
             name=name,
-            machine_type=row.get('machine_type', '').strip() or 'injection',
-            manufacturer=row.get('manufacturer', '').strip() or None,
+            manufacturer=row.get('manufacturer', '').strip() or 'Borche',
             model=row.get('model', '').strip() or None,
             tonnage=int(row.get('tonnage') or 0) or None,
-            shot_size_g=float(row.get('shot_size_g') or 0) or None,
-            screw_diameter_mm=float(row.get('screw_diameter_mm') or 0) or None,
-            max_mould_width_mm=float(row.get('max_mould_width_mm') or 0) or None,
-            max_mould_height_mm=float(row.get('max_mould_height_mm') or 0) or None,
-            hourly_rate=float(row.get('hourly_rate') or 0) or None,
-            status=row.get('status', '').strip() or 'available',
+            status=row.get('status', '').strip() or 'idle',
             notes=row.get('notes', '').strip() or None
         )
         db.session.add(machine)
@@ -591,31 +563,28 @@ def import_location(row, result):
     """Import a location record"""
     code = row.get('code', '').strip().upper()
     name = row.get('name', '').strip()
+    location_type = row.get('location_type', '').strip()
 
-    if not code or not name:
-        raise ValueError("Code and name are required")
+    if not code or not name or not location_type:
+        raise ValueError("Code, name, and location_type are required")
 
     existing = Location.query.filter_by(code=code).first()
 
     if existing:
         existing.name = name
         existing.zone = row.get('zone', '').strip() or existing.zone
-        existing.location_type = row.get('location_type', '').strip() or existing.location_type
-        existing.is_pickable = row.get('is_pickable', '').upper() != 'FALSE'
-        existing.is_receivable = row.get('is_receivable', '').upper() != 'FALSE'
-        existing.max_weight_kg = float(row.get('max_weight_kg') or 0) or existing.max_weight_kg
-        existing.notes = row.get('notes', '').strip() or existing.notes
+        existing.location_type = location_type
+        existing.max_capacity = float(row.get('max_capacity') or 0) or existing.max_capacity
+        existing.description = row.get('notes', '').strip() or existing.description
         result['updated'] += 1
     else:
         location = Location(
             code=code,
             name=name,
             zone=row.get('zone', '').strip() or None,
-            location_type=row.get('location_type', '').strip() or 'rack',
-            is_pickable=row.get('is_pickable', '').upper() != 'FALSE',
-            is_receivable=row.get('is_receivable', '').upper() != 'FALSE',
-            max_weight_kg=float(row.get('max_weight_kg') or 0) or None,
-            notes=row.get('notes', '').strip() or None
+            location_type=location_type,
+            max_capacity=float(row.get('max_capacity') or 0) or 0,
+            description=row.get('notes', '').strip() or None
         )
         db.session.add(location)
         result['created'] += 1
@@ -656,7 +625,7 @@ def import_item(row, result):
     customer_id = None
     customer_code = row.get('customer_code', '').strip().upper()
     if customer_code:
-        customer = Customer.query.filter_by(code=customer_code).first()
+        customer = Customer.query.filter_by(customer_code=customer_code).first()
         if customer:
             customer_id = customer.id
 
@@ -666,20 +635,6 @@ def import_item(row, result):
         mould = Mould.query.filter_by(mould_number=mould_number).first()
         if mould:
             mould_id = mould.id
-
-    material_id = None
-    material_code = row.get('material_code', '').strip().upper()
-    if material_code:
-        material = Material.query.filter_by(code=material_code).first()
-        if material:
-            material_id = material.id
-
-    masterbatch_id = None
-    masterbatch_code = row.get('masterbatch_code', '').strip().upper()
-    if masterbatch_code:
-        masterbatch = Masterbatch.query.filter_by(code=masterbatch_code).first()
-        if masterbatch:
-            masterbatch_id = masterbatch.id
 
     existing = Item.query.filter_by(sku=sku).first()
 
@@ -693,9 +648,6 @@ def import_item(row, result):
         existing.runner_weight_grams = float(row.get('runner_weight_grams') or 0) or existing.runner_weight_grams
         existing.cavities = int(row.get('cavities') or 0) or existing.cavities
         existing.cycle_time_seconds = float(row.get('cycle_time_seconds') or 0) or existing.cycle_time_seconds
-        existing.linked_material_id = material_id or existing.linked_material_id
-        existing.linked_masterbatch_id = masterbatch_id or existing.linked_masterbatch_id
-        existing.masterbatch_ratio = row.get('masterbatch_ratio', '').strip() or existing.masterbatch_ratio
         existing.material_cost_per_kg = float(row.get('material_cost_per_kg') or 0) or existing.material_cost_per_kg
         existing.default_mould_id = mould_id or existing.default_mould_id
         existing.color = row.get('color', '').strip() or existing.color
@@ -716,9 +668,6 @@ def import_item(row, result):
             runner_weight_grams=float(row.get('runner_weight_grams') or 0) or None,
             cavities=int(row.get('cavities') or 0) or 1,
             cycle_time_seconds=float(row.get('cycle_time_seconds') or 0) or None,
-            linked_material_id=material_id,
-            linked_masterbatch_id=masterbatch_id,
-            masterbatch_ratio=row.get('masterbatch_ratio', '').strip() or None,
             material_cost_per_kg=float(row.get('material_cost_per_kg') or 0) or None,
             default_mould_id=mould_id,
             color=row.get('color', '').strip() or None,
@@ -754,7 +703,7 @@ def export_data(data_type):
 
     if data_type == 'customers':
         for c in Customer.query.order_by(Customer.name).all():
-            writer.writerow([c.code, c.name, c.contact_name, c.email, c.phone, c.address, c.city, c.postcode, c.country, c.payment_terms, c.notes])
+            writer.writerow([c.customer_code, c.name, c.contact_name, c.email, c.phone, c.address_line1, c.address_line2, c.city, c.postcode, c.country, c.credit_terms, c.special_requirements])
 
     elif data_type == 'materials':
         for m in Material.query.order_by(Material.code).all():
@@ -766,28 +715,25 @@ def export_data(data_type):
 
     elif data_type == 'masterbatches':
         for mb in Masterbatch.query.order_by(Masterbatch.code).all():
-            writer.writerow([mb.code, mb.name, mb.masterbatch_type, mb.color, mb.color_hex, mb.cost_per_kg, mb.typical_loading_percent, mb.compatible_materials, mb.supplier_code, mb.min_stock_kg, mb.notes])
+            writer.writerow([mb.code, mb.name, mb.color, mb.color_code, mb.cost_per_kg, mb.typical_ratio_percent, mb.compatible_materials, mb.supplier_code, mb.min_stock_kg, mb.notes])
 
     elif data_type == 'moulds':
         for m in Mould.query.order_by(Mould.mould_number).all():
-            customer_code = m.customer.code if m.customer else ''
-            writer.writerow([m.mould_number, m.name, m.num_cavities, m.material_type, m.runner_type, customer_code, m.machine_tonnage_required, m.cycle_time_target, m.status, m.location, m.notes])
+            writer.writerow([m.mould_number, m.name, m.num_cavities, m.material_compatibility, m.tonnage_required, m.cycle_time_seconds, m.status, m.storage_location, m.notes])
 
     elif data_type == 'machines':
-        for m in Machine.query.order_by(Machine.code).all():
-            writer.writerow([m.code, m.name, m.machine_type, m.manufacturer, m.model, m.tonnage, m.shot_size_g, m.screw_diameter_mm, m.max_mould_width_mm, m.max_mould_height_mm, m.hourly_rate, m.status, m.notes])
+        for m in Machine.query.order_by(Machine.machine_code).all():
+            writer.writerow([m.machine_code, m.name, m.manufacturer, m.model, m.tonnage, m.status, m.notes])
 
     elif data_type == 'locations':
         for l in Location.query.order_by(Location.code).all():
-            writer.writerow([l.code, l.name, l.zone, l.location_type, 'TRUE' if l.is_pickable else 'FALSE', 'TRUE' if l.is_receivable else 'FALSE', l.max_weight_kg, l.notes])
+            writer.writerow([l.code, l.name, l.zone, l.location_type, l.max_capacity, l.description])
 
     elif data_type == 'items':
         for i in Item.query.filter_by(is_active=True).order_by(Item.sku).all():
-            customer_code = i.customer.code if i.customer else ''
+            customer_code = i.customer.customer_code if i.customer else ''
             mould_number = i.default_mould.mould_number if i.default_mould else ''
-            material_code = i.linked_material.code if i.linked_material else ''
-            masterbatch_code = i.linked_masterbatch.code if i.linked_masterbatch else ''
-            writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, material_code, masterbatch_code, i.masterbatch_ratio, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.notes])
+            writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.notes])
 
     elif data_type == 'categories':
         for c in Category.query.order_by(Category.name).all():
@@ -822,7 +768,7 @@ def export_all_data():
 
             if data_type == 'customers':
                 for c in Customer.query.order_by(Customer.name).all():
-                    writer.writerow([c.code, c.name, c.contact_name, c.email, c.phone, c.address, c.city, c.postcode, c.country, c.payment_terms, c.notes])
+                    writer.writerow([c.customer_code, c.name, c.contact_name, c.email, c.phone, c.address_line1, c.address_line2, c.city, c.postcode, c.country, c.credit_terms, c.special_requirements])
 
             elif data_type == 'materials':
                 for m in Material.query.order_by(Material.code).all():
@@ -834,28 +780,25 @@ def export_all_data():
 
             elif data_type == 'masterbatches':
                 for mb in Masterbatch.query.order_by(Masterbatch.code).all():
-                    writer.writerow([mb.code, mb.name, mb.masterbatch_type, mb.color, mb.color_hex, mb.cost_per_kg, mb.typical_loading_percent, mb.compatible_materials, mb.supplier_code, mb.min_stock_kg, mb.notes])
+                    writer.writerow([mb.code, mb.name, mb.color, mb.color_code, mb.cost_per_kg, mb.typical_ratio_percent, mb.compatible_materials, mb.supplier_code, mb.min_stock_kg, mb.notes])
 
             elif data_type == 'moulds':
                 for m in Mould.query.order_by(Mould.mould_number).all():
-                    customer_code = m.customer.code if m.customer else ''
-                    writer.writerow([m.mould_number, m.name, m.num_cavities, m.material_type, m.runner_type, customer_code, m.machine_tonnage_required, m.cycle_time_target, m.status, m.location, m.notes])
+                    writer.writerow([m.mould_number, m.name, m.num_cavities, m.material_compatibility, m.tonnage_required, m.cycle_time_seconds, m.status, m.storage_location, m.notes])
 
             elif data_type == 'machines':
-                for m in Machine.query.order_by(Machine.code).all():
-                    writer.writerow([m.code, m.name, m.machine_type, m.manufacturer, m.model, m.tonnage, m.shot_size_g, m.screw_diameter_mm, m.max_mould_width_mm, m.max_mould_height_mm, m.hourly_rate, m.status, m.notes])
+                for m in Machine.query.order_by(Machine.machine_code).all():
+                    writer.writerow([m.machine_code, m.name, m.manufacturer, m.model, m.tonnage, m.status, m.notes])
 
             elif data_type == 'locations':
                 for l in Location.query.order_by(Location.code).all():
-                    writer.writerow([l.code, l.name, l.zone, l.location_type, 'TRUE' if l.is_pickable else 'FALSE', 'TRUE' if l.is_receivable else 'FALSE', l.max_weight_kg, l.notes])
+                    writer.writerow([l.code, l.name, l.zone, l.location_type, l.max_capacity, l.description])
 
             elif data_type == 'items':
                 for i in Item.query.filter_by(is_active=True).order_by(Item.sku).all():
-                    customer_code = i.customer.code if i.customer else ''
+                    customer_code = i.customer.customer_code if i.customer else ''
                     mould_number = i.default_mould.mould_number if i.default_mould else ''
-                    material_code = i.linked_material.code if i.linked_material else ''
-                    masterbatch_code = i.linked_masterbatch.code if i.linked_masterbatch else ''
-                    writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, material_code, masterbatch_code, i.masterbatch_ratio, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.notes])
+                    writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.notes])
 
             elif data_type == 'categories':
                 for c in Category.query.order_by(Category.name).all():
