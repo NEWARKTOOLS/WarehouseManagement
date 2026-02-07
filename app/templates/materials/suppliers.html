@@ -57,9 +57,20 @@
                             <span class="badge bg-light text-dark">{{ supplier.lead_time_days }} day lead</span>
                             {% endif %}
                         </div>
-                        <a href="{{ url_for('materials.supplier_edit', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('materials.supplier_edit', supplier_id=supplier.id) }}" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            {% if current_user.is_admin() %}
+                            <form method="POST" action="{{ url_for('materials.supplier_delete', supplier_id=supplier.id) }}" class="d-inline"
+                                  onsubmit="return confirm('Deactivate supplier {{ supplier.name }}?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% if material_count > 0 %}

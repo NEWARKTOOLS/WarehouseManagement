@@ -257,12 +257,57 @@ def import_data():
     return render_template('data_management/import.html', templates=CSV_TEMPLATES)
 
 
+def _safe_int(value, default=None):
+    """Safely convert to int, returning default on failure"""
+    if not value or not str(value).strip():
+        return default
+    try:
+        return int(float(str(value).strip()))
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_float(value, default=None):
+    """Safely convert to float, returning default on failure"""
+    if not value or not str(value).strip():
+        return default
+    try:
+        return float(str(value).strip())
+    except (ValueError, TypeError):
+        return default
+
+
+# Column alias mappings — common alternative names for expected columns
+COLUMN_ALIASES = {
+    'code': 'customer_code',
+    'address': 'address_line1',
+    'address1': 'address_line1',
+    'address2': 'address_line2',
+    'special_requirements': 'notes',
+}
+
+
+def _normalise_row(row):
+    """Apply column aliases to handle common alternative header names"""
+    normalised = {}
+    for key, value in row.items():
+        clean_key = key.strip().lower().replace('*', '') if key else ''
+        # Apply alias if it exists, otherwise use original
+        mapped_key = COLUMN_ALIASES.get(clean_key, clean_key)
+        # Don't overwrite if the canonical name already exists with a value
+        if mapped_key not in normalised or not normalised.get(mapped_key):
+            normalised[mapped_key] = value
+    return normalised
+
+
 def import_records(data_type, rows):
     """Import records from CSV rows"""
     result = {'created': 0, 'updated': 0, 'errors': 0, 'error_messages': []}
 
     for i, row in enumerate(rows, start=2):  # Start at 2 (header is row 1)
         try:
+            # Normalise column names to handle common aliases
+            row = _normalise_row(row)
             if data_type == 'customers':
                 import_customer(row, result)
             elif data_type == 'materials':
@@ -313,7 +358,7 @@ def import_customer(row, result):
         existing.city = row.get('city', '').strip() or existing.city
         existing.postcode = row.get('postcode', '').strip() or existing.postcode
         existing.country = row.get('country', '').strip() or existing.country
-        existing.credit_terms = int(row.get('credit_terms') or 0) or existing.credit_terms
+        existing.credit_terms = _safe_int(row.get('credit_terms')) or existing.credit_terms
         existing.special_requirements = row.get('notes', '').strip() or existing.special_requirements
         result['updated'] += 1
     else:
@@ -329,7 +374,7 @@ def import_customer(row, result):
             city=row.get('city', '').strip() or None,
             postcode=row.get('postcode', '').strip() or None,
             country=row.get('country', '').strip() or 'United Kingdom',
-            credit_terms=int(row.get('credit_terms') or 30) or 30,
+            credit_terms=_safe_int(row.get('credit_terms'), 30),
             special_requirements=row.get('notes', '').strip() or None
         )
         db.session.add(customer)
@@ -360,8 +405,8 @@ def import_supplier(row, result):
         existing.country = row.get('country', '').strip() or existing.country
         existing.account_number = row.get('account_number', '').strip() or existing.account_number
         existing.payment_terms = row.get('payment_terms', '').strip() or existing.payment_terms
-        existing.lead_time_days = int(row.get('lead_time_days') or 0) or existing.lead_time_days
-        existing.minimum_order_kg = float(row.get('minimum_order_kg') or 0) or existing.minimum_order_kg
+        existing.lead_time_days = _safe_int(row.get('lead_time_days')) or existing.lead_time_days
+        existing.minimum_order_kg = _safe_float(row.get('minimum_order_kg')) or existing.minimum_order_kg
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
     else:
@@ -379,8 +424,8 @@ def import_supplier(row, result):
             country=row.get('country', '').strip() or 'UK',
             account_number=row.get('account_number', '').strip() or None,
             payment_terms=row.get('payment_terms', '').strip() or None,
-            lead_time_days=int(row.get('lead_time_days') or 0) or None,
-            minimum_order_kg=float(row.get('minimum_order_kg') or 0) or None,
+            lead_time_days=_safe_int(row.get('lead_time_days')),
+            minimum_order_kg=_safe_float(row.get('minimum_order_kg')),
             notes=row.get('notes', '').strip() or None
         )
         db.session.add(supplier)
@@ -410,16 +455,16 @@ def import_material(row, result):
         existing.supplier_code = row.get('supplier_code', '').strip() or existing.supplier_code
         existing.color = row.get('color', '').strip() or existing.color
         existing.cost_per_kg = cost_per_kg
-        existing.mfi = float(row.get('mfi') or 0) or existing.mfi
-        existing.density = float(row.get('density') or 0) or existing.density
-        existing.barrel_temp_min = int(row.get('barrel_temp_min') or 0) or existing.barrel_temp_min
-        existing.barrel_temp_max = int(row.get('barrel_temp_max') or 0) or existing.barrel_temp_max
-        existing.mould_temp_min = int(row.get('mould_temp_min') or 0) or existing.mould_temp_min
-        existing.mould_temp_max = int(row.get('mould_temp_max') or 0) or existing.mould_temp_max
+        existing.mfi = _safe_float(row.get('mfi')) or existing.mfi
+        existing.density = _safe_float(row.get('density')) or existing.density
+        existing.barrel_temp_min = _safe_int(row.get('barrel_temp_min')) or existing.barrel_temp_min
+        existing.barrel_temp_max = _safe_int(row.get('barrel_temp_max')) or existing.barrel_temp_max
+        existing.mould_temp_min = _safe_int(row.get('mould_temp_min')) or existing.mould_temp_min
+        existing.mould_temp_max = _safe_int(row.get('mould_temp_max')) or existing.mould_temp_max
         existing.drying_required = row.get('drying_required', '').upper() == 'TRUE'
-        existing.drying_temp = int(row.get('drying_temp') or 0) or existing.drying_temp
-        existing.drying_time_hours = float(row.get('drying_time_hours') or 0) or existing.drying_time_hours
-        existing.min_stock_kg = float(row.get('min_stock_kg') or 0) or existing.min_stock_kg
+        existing.drying_temp = _safe_int(row.get('drying_temp')) or existing.drying_temp
+        existing.drying_time_hours = _safe_float(row.get('drying_time_hours')) or existing.drying_time_hours
+        existing.min_stock_kg = _safe_float(row.get('min_stock_kg')) or existing.min_stock_kg
         existing.notes = row.get('notes', '').strip() or existing.notes
         existing.last_price_update = datetime.utcnow()
         result['updated'] += 1
@@ -433,16 +478,16 @@ def import_material(row, result):
             supplier_code=row.get('supplier_code', '').strip() or None,
             color=row.get('color', '').strip() or 'Natural',
             cost_per_kg=cost_per_kg,
-            mfi=float(row.get('mfi') or 0) or None,
-            density=float(row.get('density') or 0) or None,
-            barrel_temp_min=int(row.get('barrel_temp_min') or 0) or None,
-            barrel_temp_max=int(row.get('barrel_temp_max') or 0) or None,
-            mould_temp_min=int(row.get('mould_temp_min') or 0) or None,
-            mould_temp_max=int(row.get('mould_temp_max') or 0) or None,
+            mfi=_safe_float(row.get('mfi')),
+            density=_safe_float(row.get('density')),
+            barrel_temp_min=_safe_int(row.get('barrel_temp_min')),
+            barrel_temp_max=_safe_int(row.get('barrel_temp_max')),
+            mould_temp_min=_safe_int(row.get('mould_temp_min')),
+            mould_temp_max=_safe_int(row.get('mould_temp_max')),
             drying_required=row.get('drying_required', '').upper() == 'TRUE',
-            drying_temp=int(row.get('drying_temp') or 0) or None,
-            drying_time_hours=float(row.get('drying_time_hours') or 0) or None,
-            min_stock_kg=float(row.get('min_stock_kg') or 0) or None,
+            drying_temp=_safe_int(row.get('drying_temp')),
+            drying_time_hours=_safe_float(row.get('drying_time_hours')),
+            min_stock_kg=_safe_float(row.get('min_stock_kg')),
             notes=row.get('notes', '').strip() or None,
             last_price_update=datetime.utcnow()
         )
@@ -468,10 +513,10 @@ def import_masterbatch(row, result):
         existing.color = row.get('color', '').strip() or existing.color
         existing.color_code = row.get('color_code', '').strip() or existing.color_code
         existing.cost_per_kg = cost_per_kg
-        existing.typical_ratio_percent = float(row.get('typical_ratio_percent') or 0) or existing.typical_ratio_percent
+        existing.typical_ratio_percent = _safe_float(row.get('typical_ratio_percent')) or existing.typical_ratio_percent
         existing.compatible_materials = row.get('compatible_materials', '').strip() or existing.compatible_materials
         existing.supplier_code = row.get('supplier_code', '').strip() or existing.supplier_code
-        existing.min_stock_kg = float(row.get('min_stock_kg') or 0) or existing.min_stock_kg
+        existing.min_stock_kg = _safe_float(row.get('min_stock_kg')) or existing.min_stock_kg
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
     else:
@@ -481,10 +526,10 @@ def import_masterbatch(row, result):
             color=row.get('color', '').strip() or None,
             color_code=row.get('color_code', '').strip() or None,
             cost_per_kg=cost_per_kg,
-            typical_ratio_percent=float(row.get('typical_ratio_percent') or 3) or 3,
+            typical_ratio_percent=_safe_float(row.get('typical_ratio_percent'), 3),
             compatible_materials=row.get('compatible_materials', '').strip() or None,
             supplier_code=row.get('supplier_code', '').strip() or None,
-            min_stock_kg=float(row.get('min_stock_kg') or 0) or None,
+            min_stock_kg=_safe_float(row.get('min_stock_kg')),
             notes=row.get('notes', '').strip() or None
         )
         db.session.add(masterbatch)
@@ -505,8 +550,8 @@ def import_mould(row, result):
         existing.name = row.get('name', '').strip() or existing.name
         existing.num_cavities = int(num_cavities)
         existing.material_compatibility = row.get('material_compatibility', '').strip() or existing.material_compatibility
-        existing.tonnage_required = int(row.get('tonnage_required') or 0) or existing.tonnage_required
-        existing.cycle_time_seconds = float(row.get('cycle_time_seconds') or 0) or existing.cycle_time_seconds
+        existing.tonnage_required = _safe_int(row.get('tonnage_required')) or existing.tonnage_required
+        existing.cycle_time_seconds = _safe_float(row.get('cycle_time_seconds')) or existing.cycle_time_seconds
         existing.status = row.get('status', '').strip() or existing.status
         existing.storage_location = row.get('storage_location', '').strip() or existing.storage_location
         existing.notes = row.get('notes', '').strip() or existing.notes
@@ -517,8 +562,8 @@ def import_mould(row, result):
             name=row.get('name', '').strip() or None,
             num_cavities=int(num_cavities),
             material_compatibility=row.get('material_compatibility', '').strip() or None,
-            tonnage_required=int(row.get('tonnage_required') or 0) or None,
-            cycle_time_seconds=float(row.get('cycle_time_seconds') or 0) or None,
+            tonnage_required=_safe_int(row.get('tonnage_required')),
+            cycle_time_seconds=_safe_float(row.get('cycle_time_seconds')),
             status=row.get('status', '').strip() or 'available',
             storage_location=row.get('storage_location', '').strip() or None,
             notes=row.get('notes', '').strip() or None
@@ -541,7 +586,7 @@ def import_machine(row, result):
         existing.name = name
         existing.manufacturer = row.get('manufacturer', '').strip() or existing.manufacturer
         existing.model = row.get('model', '').strip() or existing.model
-        existing.tonnage = int(row.get('tonnage') or 0) or existing.tonnage
+        existing.tonnage = _safe_int(row.get('tonnage')) or existing.tonnage
         existing.status = row.get('status', '').strip() or existing.status
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
@@ -551,7 +596,7 @@ def import_machine(row, result):
             name=name,
             manufacturer=row.get('manufacturer', '').strip() or 'Borche',
             model=row.get('model', '').strip() or None,
-            tonnage=int(row.get('tonnage') or 0) or None,
+            tonnage=_safe_int(row.get('tonnage')),
             status=row.get('status', '').strip() or 'idle',
             notes=row.get('notes', '').strip() or None
         )
@@ -574,7 +619,7 @@ def import_location(row, result):
         existing.name = name
         existing.zone = row.get('zone', '').strip() or existing.zone
         existing.location_type = location_type
-        existing.max_capacity = float(row.get('max_capacity') or 0) or existing.max_capacity
+        existing.max_capacity = _safe_float(row.get('max_capacity')) or existing.max_capacity
         existing.description = row.get('notes', '').strip() or existing.description
         result['updated'] += 1
     else:
@@ -583,7 +628,7 @@ def import_location(row, result):
             name=name,
             zone=row.get('zone', '').strip() or None,
             location_type=location_type,
-            max_capacity=float(row.get('max_capacity') or 0) or 0,
+            max_capacity=_safe_float(row.get('max_capacity'), 0),
             description=row.get('notes', '').strip() or None
         )
         db.session.add(location)
@@ -644,16 +689,16 @@ def import_item(row, result):
         existing.item_type = row.get('item_type', '').strip() or existing.item_type
         existing.customer_id = customer_id or existing.customer_id
         existing.unit_of_measure = row.get('unit_of_measure', '').strip() or existing.unit_of_measure
-        existing.part_weight_grams = float(row.get('part_weight_grams') or 0) or existing.part_weight_grams
-        existing.runner_weight_grams = float(row.get('runner_weight_grams') or 0) or existing.runner_weight_grams
-        existing.cavities = int(row.get('cavities') or 0) or existing.cavities
-        existing.cycle_time_seconds = float(row.get('cycle_time_seconds') or 0) or existing.cycle_time_seconds
-        existing.material_cost_per_kg = float(row.get('material_cost_per_kg') or 0) or existing.material_cost_per_kg
+        existing.part_weight_grams = _safe_float(row.get('part_weight_grams')) or existing.part_weight_grams
+        existing.runner_weight_grams = _safe_float(row.get('runner_weight_grams')) or existing.runner_weight_grams
+        existing.cavities = _safe_int(row.get('cavities')) or existing.cavities
+        existing.cycle_time_seconds = _safe_float(row.get('cycle_time_seconds')) or existing.cycle_time_seconds
+        existing.material_cost_per_kg = _safe_float(row.get('material_cost_per_kg')) or existing.material_cost_per_kg
         existing.default_mould_id = mould_id or existing.default_mould_id
         existing.color = row.get('color', '').strip() or existing.color
-        existing.min_stock_level = float(row.get('min_stock_level') or 0) or existing.min_stock_level
-        existing.unit_cost = float(row.get('unit_cost') or 0) or existing.unit_cost
-        existing.selling_price = float(row.get('selling_price') or 0) or existing.selling_price
+        existing.min_stock_level = _safe_float(row.get('min_stock_level')) or existing.min_stock_level
+        existing.unit_cost = _safe_float(row.get('unit_cost')) or existing.unit_cost
+        existing.selling_price = _safe_float(row.get('selling_price')) or existing.selling_price
         existing.notes = row.get('notes', '').strip() or existing.notes
         result['updated'] += 1
     else:
@@ -664,16 +709,16 @@ def import_item(row, result):
             item_type=row.get('item_type', '').strip() or 'finished_goods',
             customer_id=customer_id,
             unit_of_measure=row.get('unit_of_measure', '').strip() or 'parts',
-            part_weight_grams=float(row.get('part_weight_grams') or 0) or None,
-            runner_weight_grams=float(row.get('runner_weight_grams') or 0) or None,
-            cavities=int(row.get('cavities') or 0) or 1,
-            cycle_time_seconds=float(row.get('cycle_time_seconds') or 0) or None,
-            material_cost_per_kg=float(row.get('material_cost_per_kg') or 0) or None,
+            part_weight_grams=_safe_float(row.get('part_weight_grams')),
+            runner_weight_grams=_safe_float(row.get('runner_weight_grams')),
+            cavities=_safe_int(row.get('cavities'), 1),
+            cycle_time_seconds=_safe_float(row.get('cycle_time_seconds')),
+            material_cost_per_kg=_safe_float(row.get('material_cost_per_kg')),
             default_mould_id=mould_id,
             color=row.get('color', '').strip() or None,
-            min_stock_level=float(row.get('min_stock_level') or 0) or 0,
-            unit_cost=float(row.get('unit_cost') or 0) or 0,
-            selling_price=float(row.get('selling_price') or 0) or 0,
+            min_stock_level=_safe_float(row.get('min_stock_level'), 0),
+            unit_cost=_safe_float(row.get('unit_cost'), 0),
+            selling_price=_safe_float(row.get('selling_price'), 0),
             notes=row.get('notes', '').strip() or None,
             barcode=sku
         )

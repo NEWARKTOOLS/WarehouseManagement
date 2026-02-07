@@ -145,6 +145,15 @@
                                 <a href="{{ url_for('materials.material_edit', material_id=m.id) }}" class="btn btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                {% if current_user.is_admin() %}
+                                <form method="POST" action="{{ url_for('materials.material_delete', material_id=m.id) }}" class="d-inline"
+                                      onsubmit="return confirm('Deactivate material {{ m.code }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

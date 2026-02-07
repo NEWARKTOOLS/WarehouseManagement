@@ -53,9 +53,20 @@
                         <td class="text-end">£{{ "%.2f"|format(mb.cost_per_kg) }}</td>
                         <td class="text-center">{{ mb.typical_loading_percent or '-' }}%</td>
                         <td class="text-end">
-                            <a href="{{ url_for('materials.masterbatch_edit', masterbatch_id=mb.id) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('materials.masterbatch_edit', masterbatch_id=mb.id) }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% if current_user.is_admin() %}
+                                <form method="POST" action="{{ url_for('materials.masterbatch_delete', masterbatch_id=mb.id) }}" class="d-inline"
+                                      onsubmit="return confirm('Deactivate masterbatch {{ mb.code }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}

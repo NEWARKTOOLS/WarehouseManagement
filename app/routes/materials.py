@@ -191,6 +191,29 @@ def material_edit(material_id):
     return render_template('materials/form.html', material=material, suppliers=suppliers)
 
 
+@bp.route('/<int:material_id>/delete', methods=['POST'])
+@login_required
+def material_delete(material_id):
+    """Delete (deactivate) material"""
+    if not current_user.is_admin():
+        flash('Admin access required', 'error')
+        return redirect(url_for('materials.material_list'))
+
+    material = Material.query.get_or_404(material_id)
+
+    # Check if any active items are linked to this material
+    from app.models.inventory import Item
+    linked_items = Item.query.filter_by(linked_material_id=material.id, is_active=True).count()
+    if linked_items > 0:
+        flash(f'Cannot delete {material.code} — {linked_items} active part(s) still linked to this material', 'error')
+        return redirect(url_for('materials.material_detail', material_id=material.id))
+
+    material.is_active = False
+    db.session.commit()
+    flash(f'Material {material.code} has been deactivated', 'success')
+    return redirect(url_for('materials.material_list'))
+
+
 @bp.route('/<int:material_id>/update-price', methods=['POST'])
 @login_required
 def material_update_price(material_id):
@@ -256,6 +279,28 @@ def supplier_new():
         return redirect(url_for('materials.supplier_list'))
 
     return render_template('materials/supplier_form.html', supplier=None)
+
+
+@bp.route('/suppliers/<int:supplier_id>/delete', methods=['POST'])
+@login_required
+def supplier_delete(supplier_id):
+    """Delete (deactivate) supplier"""
+    if not current_user.is_admin():
+        flash('Admin access required', 'error')
+        return redirect(url_for('materials.supplier_list'))
+
+    supplier = MaterialSupplier.query.get_or_404(supplier_id)
+
+    # Check if any active materials are linked
+    linked_materials = Material.query.filter_by(supplier_id=supplier.id, is_active=True).count()
+    if linked_materials > 0:
+        flash(f'Cannot delete {supplier.name} — {linked_materials} active material(s) still linked to this supplier', 'error')
+        return redirect(url_for('materials.supplier_list'))
+
+    supplier.is_active = False
+    db.session.commit()
+    flash(f'Supplier {supplier.name} has been deactivated', 'success')
+    return redirect(url_for('materials.supplier_list'))
 
 
 @bp.route('/suppliers/<int:supplier_id>/edit', methods=['GET', 'POST'])
@@ -332,6 +377,21 @@ def masterbatch_new():
 
     suppliers = MaterialSupplier.query.filter_by(is_active=True).order_by(MaterialSupplier.name).all()
     return render_template('materials/masterbatch_form.html', masterbatch=None, suppliers=suppliers)
+
+
+@bp.route('/masterbatches/<int:masterbatch_id>/delete', methods=['POST'])
+@login_required
+def masterbatch_delete(masterbatch_id):
+    """Delete (deactivate) masterbatch"""
+    if not current_user.is_admin():
+        flash('Admin access required', 'error')
+        return redirect(url_for('materials.masterbatch_list'))
+
+    masterbatch = Masterbatch.query.get_or_404(masterbatch_id)
+    masterbatch.is_active = False
+    db.session.commit()
+    flash(f'Masterbatch {masterbatch.code} has been deactivated', 'success')
+    return redirect(url_for('materials.masterbatch_list'))
 
 
 @bp.route('/masterbatches/<int:masterbatch_id>/edit', methods=['GET', 'POST'])

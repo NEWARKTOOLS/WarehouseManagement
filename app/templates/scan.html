@@ -182,9 +182,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check camera availability
     function checkCameraSupport() {
-        // Check for secure context (needed for camera on iOS)
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            showStatus('Camera requires HTTPS. Use manual barcode entry below, or access via HTTPS.', 'warning');
+        // Use the browser's own secure context check — this correctly handles
+        // localhost, HTTPS, Tailscale HTTPS, and any other secure origins
+        if (!window.isSecureContext) {
+            const host = window.location.hostname;
+            // Tailscale IPs (100.x.x.x) with HTTPS cert should pass isSecureContext,
+            // but if accessing via plain HTTP show a helpful message
+            if (host.startsWith('100.')) {
+                showStatus('Camera requires HTTPS. Try accessing via your Tailscale HTTPS URL (e.g. https://your-machine.tail-net-name.ts.net:5000) or use manual barcode entry below.', 'warning');
+            } else {
+                showStatus('Camera requires a secure connection (HTTPS or localhost). Use manual barcode entry below, or access via HTTPS.', 'warning');
+            }
             return false;
         }
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
