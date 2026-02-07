@@ -408,7 +408,7 @@ def complete_job(job_id):
 
         db.session.commit()
 
-        return redirect(url_for('scheduling.machine_schedule', machine_id=job.machine_id))
+        return redirect(url_for('scheduling.next_job_prompt', job_id=job.id))
 
     # GET - show completion form
     locations = Location.query.filter_by(is_active=True).order_by(Location.code).all()
@@ -420,10 +420,111 @@ def complete_job(job_id):
         ScheduledJob.status == 'scheduled'
     ).order_by(ScheduledJob.scheduled_date, ScheduledJob.sequence_order).first()
 
+    # Build changeover information
+    changeover_info = None
+    if next_job and job.production_order and next_job.production_order:
+        current_mould = job.production_order.mould
+        next_mould = next_job.production_order.mould
+        current_item = job.production_order.item
+        next_item = next_job.production_order.item
+
+        mould_change = current_mould != next_mould if current_mould and next_mould else False
+        material_change = (
+            current_item.material_grade != next_item.material_grade
+        ) if current_item and next_item and current_item.material_grade and next_item.material_grade else False
+        color_change = (
+            current_item.color != next_item.color
+        ) if current_item and next_item and current_item.color and next_item.color else False
+
+        # Estimate changeover time in minutes
+        estimated_changeover_minutes = 0
+        if mould_change:
+            estimated_changeover_minutes += 90  # Mould change ~90 min
+        if material_change:
+            estimated_changeover_minutes += 30  # Material purge ~30 min
+        if color_change and not material_change:
+            estimated_changeover_minutes += 20  # Color change only ~20 min
+
+        changeover_info = {
+            'mould_change': mould_change,
+            'current_mould': current_mould,
+            'next_mould': next_mould,
+            'material_change': material_change,
+            'current_material': current_item.material_grade if current_item else None,
+            'next_material': next_item.material_grade if next_item else None,
+            'color_change': color_change,
+            'current_color': current_item.color if current_item else None,
+            'next_color': next_item.color if next_item else None,
+            'estimated_changeover_minutes': estimated_changeover_minutes,
+        }
+
     return render_template('scheduling/complete_job.html',
                            job=job,
                            locations=locations,
-                           next_job=next_job)
+                           next_job=next_job,
+                           changeover_info=changeover_info)
+
+
+@scheduling_bp.route('/job/<int:job_id>/next-prompt')
+@login_required
+def next_job_prompt(job_id):
+    """Show post-completion prompt with next job info and changeover requirements"""
+    job = ScheduledJob.query.get_or_404(job_id)
+
+    # Get the next scheduled job on this machine
+    today = date.today()
+    next_job = ScheduledJob.query.filter(
+        ScheduledJob.machine_id == job.machine_id,
+        ScheduledJob.id != job.id,
+        ScheduledJob.status == 'scheduled'
+    ).order_by(ScheduledJob.scheduled_date, ScheduledJob.sequence_order).first()
+
+    # Build changeover information
+    changeover_info = None
+    if next_job and job.production_order and next_job.production_order:
+        current_mould = job.production_order.mould
+        next_mould = next_job.production_order.mould
+        current_item = job.production_order.item
+        next_item = next_job.production_order.item
+
+        mould_change = current_mould != next_mould if current_mould and next_mould else False
+        material_change = (
+            current_item.material_grade != next_item.material_grade
+        ) if current_item and next_item and current_item.material_grade and next_item.material_grade else False
+        color_change = (
+            current_item.color != next_item.color
+        ) if current_item and next_item and current_item.color and next_item.color else False
+
+        # Estimate changeover time in minutes
+        estimated_changeover_minutes = 0
+        if mould_change:
+            estimated_changeover_minutes += 90
+        if material_change:
+            estimated_changeover_minutes += 30
+        if color_change and not material_change:
+            estimated_changeover_minutes += 20
+
+        changeover_info = {
+            'mould_change': mould_change,
+            'current_mould': current_mould,
+            'next_mould': next_mould,
+            'material_change': material_change,
+            'current_material': current_item.material_grade if current_item else None,
+            'next_material': next_item.material_grade if next_item else None,
+            'color_change': color_change,
+            'current_color': current_item.color if current_item else None,
+            'next_color': next_item.color if next_item else None,
+            'estimated_changeover_minutes': estimated_changeover_minutes,
+        }
+
+    # Get sorting queue count for this machine's recent output
+    sorting_count = AwaitingSorting.query.filter_by(status='pending').count()
+
+    return render_template('scheduling/next_job_prompt.html',
+                           job=job,
+                           next_job=next_job,
+                           changeover_info=changeover_info,
+                           sorting_count=sorting_count)
 
 
 @scheduling_bp.route('/schedule-job', methods=['POST'])
@@ -553,6 +654,53 @@ def sorting_queue():
 
     items = query.order_by(AwaitingSorting.created_at.desc()).all()
 
+    # Build enriched item data with urgency and sales order info
+    enriched_items = []
+    for item in items:
+        item_data = {
+            'item': item,
+            'customer_name': None,
+            'sales_order_number': None,
+            'sales_order_required_date': None,
+            'is_blocking_order': False,
+            'urgency': 'normal',  # normal, warning, urgent
+            'next_processing_step': None,
+        }
+
+        # Determine next processing step based on sorting type
+        if item.sorting_type == 'counting':
+            item_data['next_processing_step'] = 'Count & inspect, then move to stock'
+        elif item.sorting_type == 'degating':
+            item_data['next_processing_step'] = 'Remove runners, then count & stock'
+        elif item.sorting_type == 'assembly':
+            item_data['next_processing_step'] = 'Assemble components, then stock'
+        elif item.sorting_type == 'quality_check':
+            item_data['next_processing_step'] = 'Quality inspection required'
+
+        # Get linked sales order and customer info
+        if item.production_order and item.production_order.sales_order_id:
+            so = item.production_order.sales_order
+            if so:
+                item_data['sales_order_number'] = so.order_number
+                item_data['sales_order_required_date'] = so.required_date
+                if so.customer:
+                    item_data['customer_name'] = so.customer.name
+
+                # Check if this item is blocking an order dispatch
+                if so.status in ('new', 'in_production') and so.required_date:
+                    days_until_due = (so.required_date - date.today()).days
+                    if days_until_due <= 2:
+                        item_data['urgency'] = 'urgent'
+                        item_data['is_blocking_order'] = True
+                    elif days_until_due <= 5:
+                        item_data['urgency'] = 'warning'
+
+        enriched_items.append(item_data)
+
+    # Sort enriched items: urgent first, then warning, then normal; within groups by creation date
+    urgency_order = {'urgent': 0, 'warning': 1, 'normal': 2}
+    enriched_items.sort(key=lambda x: (urgency_order.get(x['urgency'], 2), x['item'].created_at))
+
     # Get counts by type
     counts = {
         'counting': AwaitingSorting.query.filter_by(status='pending', sorting_type='counting').count(),
@@ -561,12 +709,17 @@ def sorting_queue():
         'quality_check': AwaitingSorting.query.filter_by(status='pending', sorting_type='quality_check').count(),
     }
 
+    # Count urgent items
+    urgent_count = sum(1 for ei in enriched_items if ei['urgency'] == 'urgent')
+
     # Get locations for the complete modal
     locations = Location.query.filter_by(is_active=True).order_by(Location.code).all()
 
     return render_template('scheduling/sorting_queue.html',
                            items=items,
+                           enriched_items=enriched_items,
                            counts=counts,
+                           urgent_count=urgent_count,
                            status_filter=status_filter,
                            type_filter=type_filter,
                            locations=locations)

@@ -134,11 +134,15 @@
                                 <select class="form-select" name="item_id" required id="itemSelect">
                                     <option value="">Select item...</option>
                                     {% for item in items %}
-                                    <option value="{{ item.id }}" data-price="{{ item.selling_price or 0 }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">
+                                    <option value="{{ item.id }}" data-price="{{ item.selling_price or 0 }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}" data-customer="{{ item.customer_id or '' }}">
                                         {{ item.sku }} - {{ item.name }} ({{ item.total_stock }} in stock)
                                     </option>
                                     {% endfor %}
                                 </select>
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" id="showAllItems">
+                                    <label class="form-check-label small text-muted" for="showAllItems">Show all items (not just {{ order.customer.name }}'s)</label>
+                                </div>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Quantity *</label>
@@ -316,34 +320,47 @@ document.getElementById('itemSelect').addEventListener('change', function() {
     document.getElementById('unitPrice').value = price;
 });
 
-// Item search functionality
+// Item search functionality with customer filtering
 const itemSearch = document.getElementById('itemSearch');
 const itemSelect = document.getElementById('itemSelect');
+const showAllItems = document.getElementById('showAllItems');
 const allOptions = Array.from(itemSelect.options);
+const customerId = '{{ order.customer_id }}';
 
-itemSearch.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
+function filterItems() {
+    const searchTerm = itemSearch.value.toLowerCase();
+    const showAll = showAllItems.checked;
 
-    // Clear current options
     itemSelect.innerHTML = '<option value="">Select item...</option>';
 
-    // Filter and add matching options
     allOptions.forEach(option => {
-        if (option.value === '') return; // Skip the placeholder
+        if (option.value === '') return;
         const sku = (option.dataset.sku || '').toLowerCase();
         const name = (option.dataset.name || '').toLowerCase();
         const text = option.textContent.toLowerCase();
+        const itemCustomer = option.dataset.customer || '';
 
-        if (sku.includes(searchTerm) || name.includes(searchTerm) || text.includes(searchTerm)) {
+        // Customer filter: show item if it belongs to this customer, has no customer, or showAll is checked
+        const customerMatch = showAll || !itemCustomer || itemCustomer === customerId;
+
+        // Search filter
+        const searchMatch = !searchTerm || sku.includes(searchTerm) || name.includes(searchTerm) || text.includes(searchTerm);
+
+        if (customerMatch && searchMatch) {
             itemSelect.appendChild(option.cloneNode(true));
         }
     });
 
-    // If only one match, auto-select it
     if (itemSelect.options.length === 2) {
         itemSelect.selectedIndex = 1;
         itemSelect.dispatchEvent(new Event('change'));
     }
-});
+}
+
+itemSearch.addEventListener('input', filterItems);
+showAllItems.addEventListener('change', filterItems);
+
+// Initial filter on page load
+filterItems();
 </script>
 {% endblock %}

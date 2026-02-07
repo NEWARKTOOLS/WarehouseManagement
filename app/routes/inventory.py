@@ -88,6 +88,7 @@ def get_form_context():
 @login_required
 def item_create():
     """Create new inventory item"""
+    mode = request.args.get('mode', request.form.get('mode', 'simple'))
     if request.method == 'POST':
         sku = request.form.get('sku', '').strip().upper()
         name = request.form.get('name', '').strip()
@@ -95,11 +96,11 @@ def item_create():
         # Validation
         if not sku or not name:
             flash('SKU and name are required', 'error')
-            return render_template('inventory/form.html', item=None, **get_form_context())
+            return render_template('inventory/form.html', item=None, mode=mode, **get_form_context())
 
         if Item.query.filter_by(sku=sku).first():
             flash('SKU already exists', 'error')
-            return render_template('inventory/form.html', item=None, **get_form_context())
+            return render_template('inventory/form.html', item=None, mode=mode, **get_form_context())
 
         item = Item(
             sku=sku,
@@ -139,9 +140,6 @@ def item_create():
             material_cost_per_kg=request.form.get('material_cost_per_kg', type=float),
             target_machine_rate=request.form.get('target_machine_rate', type=float),
             target_margin_percent=request.form.get('target_margin_percent', 30, type=float),
-            # Linked materials from new materials system
-            linked_material_id=request.form.get('linked_material_id', type=int) or None,
-            linked_masterbatch_id=request.form.get('linked_masterbatch_id', type=int) or None,
         )
 
         # Generate barcode
@@ -164,7 +162,7 @@ def item_create():
         flash(f'Item {sku} created successfully', 'success')
         return redirect(url_for('inventory.item_detail', item_id=item.id))
 
-    return render_template('inventory/form.html', item=None, **get_form_context())
+    return render_template('inventory/form.html', item=None, mode=mode, **get_form_context())
 
 
 @inventory_bp.route('/<int:item_id>')
@@ -225,10 +223,6 @@ def item_edit(item_id):
         item.material_cost_per_kg = request.form.get('material_cost_per_kg', type=float)
         item.target_machine_rate = request.form.get('target_machine_rate', type=float)
         item.target_margin_percent = request.form.get('target_margin_percent', 30, type=float)
-        # Linked materials from new materials system
-        item.linked_material_id = request.form.get('linked_material_id', type=int) or None
-        item.linked_masterbatch_id = request.form.get('linked_masterbatch_id', type=int) or None
-
         # Handle image upload
         if 'image' in request.files:
             file = request.files['image']
@@ -241,7 +235,7 @@ def item_edit(item_id):
         flash(f'Item {item.sku} updated successfully', 'success')
         return redirect(url_for('inventory.item_detail', item_id=item.id))
 
-    return render_template('inventory/form.html', item=item, **get_form_context())
+    return render_template('inventory/form.html', item=item, mode='advanced', **get_form_context())
 
 
 @inventory_bp.route('/<int:item_id>/delete', methods=['POST'])

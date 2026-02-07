@@ -7,31 +7,48 @@
 <div class="container-fluid px-2 px-md-4">
     <div class="page-header">
         <div>
-            <h1><i class="bi bi-calendar3 me-2"></i>Production Schedule</h1>
+            <h1 class="d-none d-md-block"><i class="bi bi-calendar3 me-2"></i>Production Schedule</h1>
+            <h5 class="d-md-none mb-1"><i class="bi bi-calendar3 me-1"></i>Production Schedule</h5>
             <p class="text-muted mb-0">Week of {{ week_start.strftime('%d %b') }} - {{ week_end.strftime('%d %b %Y') }}</p>
         </div>
-        <div class="d-flex gap-2 align-items-center">
-            <a href="{{ url_for('scheduling.sorting_queue') }}" class="btn btn-outline-warning">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <!-- View Toggle -->
+            <div class="btn-group view-toggle-group" id="viewToggle">
+                <button type="button" class="btn btn-outline-primary btn-sm active" data-view="grid" id="btnGridView">
+                    <i class="bi bi-grid-3x3"></i> <span class="d-none d-sm-inline">Grid</span>
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-view="machine" id="btnMachineView">
+                    <i class="bi bi-phone-landscape"></i> <span class="d-none d-sm-inline">Machine</span>
+                </button>
+            </div>
+            <a href="{{ url_for('scheduling.sorting_queue') }}" class="btn btn-outline-warning btn-sm d-none d-md-inline-flex">
                 <i class="bi bi-inbox"></i> Sorting Queue
             </a>
             <div class="btn-group">
-                <a href="{{ url_for('scheduling.schedule_index', week=week_offset-1) }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('scheduling.schedule_index', week=week_offset-1) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-chevron-left"></i>
                 </a>
-                <a href="{{ url_for('scheduling.schedule_index', week=0) }}" class="btn btn-outline-secondary {% if week_offset == 0 %}active{% endif %}">
+                <a href="{{ url_for('scheduling.schedule_index', week=0) }}" class="btn btn-outline-secondary btn-sm {% if week_offset == 0 %}active{% endif %}">
                     Today
                 </a>
-                <a href="{{ url_for('scheduling.schedule_index', week=week_offset+1) }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('scheduling.schedule_index', week=week_offset+1) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-chevron-right"></i>
                 </a>
             </div>
+            <!-- Sidebar Toggle for Tablet -->
+            <button class="btn btn-outline-secondary btn-sm d-lg-none" id="sidebarToggle" type="button">
+                <i class="bi bi-list-task"></i>
+                <span class="badge bg-warning text-dark ms-1">{{ unscheduled_orders|length }}</span>
+            </button>
         </div>
     </div>
 
     <div class="row">
-        <!-- Main Schedule Grid -->
-        <div class="col-lg-9 col-xl-10">
-            <div class="card">
+        <!-- ============================================================ -->
+        <!-- GRID VIEW (Desktop default, table-based weekly grid)         -->
+        <!-- ============================================================ -->
+        <div class="col-lg-9 col-xl-10" id="gridViewContainer">
+            <div class="card" id="gridView">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-bordered mb-0 schedule-table">
@@ -108,87 +125,290 @@
             </div>
         </div>
 
-        <!-- Sidebar - Unscheduled Orders -->
-        <div class="col-lg-3 col-xl-2 mt-3 mt-lg-0">
-            <div class="card">
-                <div class="card-header bg-warning bg-opacity-25">
-                    <i class="bi bi-list-task me-2"></i>Jobs to Schedule ({{ unscheduled_orders|length }})
+        <!-- ============================================================ -->
+        <!-- MACHINE VIEW (iPad/Tablet optimized, one machine at a time)  -->
+        <!-- ============================================================ -->
+        <div class="col-12" id="machineViewContainer" style="display: none;">
+            <!-- Machine Selector / Navigator -->
+            <div class="machine-nav-bar mb-3">
+                <button class="btn btn-outline-secondary btn-sm" id="prevMachine" aria-label="Previous machine">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <div class="machine-nav-pills" id="machinePills">
+                    {% for machine_id, machine_data in schedule_grid.items() %}
+                    <button class="machine-pill {% if loop.first %}active{% endif %}"
+                            data-machine-index="{{ loop.index0 }}"
+                            data-machine-id="{{ machine_id }}">
+                        <span class="machine-pill-name">{{ machine_data.machine.name }}</span>
+                        <span class="machine-pill-tonnage">{{ machine_data.machine.tonnage }}T</span>
+                        <span class="badge bg-{{ 'success' if machine_data.machine.status == 'running' else 'secondary' if machine_data.machine.status == 'idle' else 'warning' }} machine-pill-status">
+                            {{ machine_data.machine.status }}
+                        </span>
+                    </button>
+                    {% endfor %}
                 </div>
-                <div class="card-body p-2" id="unscheduledContainer" style="max-height: 500px; overflow-y: auto;">
-                    {% if unscheduled_orders %}
-                    {% for order in unscheduled_orders %}
-                    <div class="unscheduled-job mb-2 p-2 border rounded bg-white"
-                         draggable="true"
-                         data-order-id="{{ order.id }}"
-                         data-sku="{{ order.item.sku if order.item else 'N/A' }}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <strong class="small">{{ order.item.sku if order.item else 'N/A' }}</strong>
-                            {% if order.priority <= 3 %}
-                            <span class="badge bg-danger">P{{ order.priority }}</span>
-                            {% elif order.priority <= 5 %}
-                            <span class="badge bg-warning text-dark">P{{ order.priority }}</span>
-                            {% endif %}
+                <button class="btn btn-outline-secondary btn-sm" id="nextMachine" aria-label="Next machine">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Machine Cards (one per machine, only active one visible) -->
+            <div class="machine-view-swiper" id="machineSwiper">
+                {% for machine_id, machine_data in schedule_grid.items() %}
+                <div class="machine-week-card {% if loop.first %}active{% endif %}"
+                     data-machine-index="{{ loop.index0 }}"
+                     data-machine-id="{{ machine_id }}">
+
+                    <!-- Machine Header -->
+                    <div class="machine-card-header">
+                        <div class="machine-card-title">
+                            <a href="{{ url_for('scheduling.machine_schedule', machine_id=machine_id) }}" class="text-decoration-none">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-cpu me-1"></i>{{ machine_data.machine.name }}
+                                    <small class="text-muted">({{ machine_data.machine.tonnage }}T)</small>
+                                </h5>
+                            </a>
                         </div>
-                        <small class="text-muted d-block text-truncate">{{ order.item.name if order.item else '' }}</small>
-                        <div class="d-flex justify-content-between mt-1">
-                            <small>{{ order.quantity_required|int }} pcs</small>
-                            {% if order.due_date %}
-                            <small class="text-{{ 'danger' if (order.due_date - today).days <= 2 else 'warning' if (order.due_date - today).days <= 5 else 'muted' }}">
-                                <i class="bi bi-calendar"></i> {{ order.due_date.strftime('%d/%m') }}
+                        <span class="badge bg-{{ 'success' if machine_data.machine.status == 'running' else 'secondary' if machine_data.machine.status == 'idle' else 'warning' }} fs-6">
+                            {{ machine_data.machine.status }}
+                        </span>
+                    </div>
+
+                    <!-- Horizontal day timeline -->
+                    <div class="machine-timeline">
+                        {% for day in week_days %}
+                        {% set day_jobs = machine_data.days[day.date.isoformat()] %}
+                        <div class="timeline-day {% if day.is_today %}timeline-today{% endif %}"
+                             data-machine-id="{{ machine_id }}"
+                             data-date="{{ day.date.strftime('%Y-%m-%d') }}">
+
+                            <div class="timeline-day-header {% if day.is_today %}bg-primary text-white{% else %}bg-light{% endif %}">
+                                <span class="fw-bold">{{ day.short_name }}</span>
+                                <span>{{ day.day_num }}</span>
+                            </div>
+
+                            <div class="timeline-day-jobs schedule-cell"
+                                 data-machine-id="{{ machine_id }}"
+                                 data-date="{{ day.date.strftime('%Y-%m-%d') }}">
+                                {% for job in day_jobs %}
+                                <div class="mv-job-card job-{{ job.status }} border-{{ job.urgency_class }}"
+                                     data-job-id="{{ job.id }}"
+                                     draggable="true">
+                                    <div class="mv-job-header">
+                                        <span class="mv-job-sku">{{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}</span>
+                                        <div class="mv-job-icons">
+                                            {% if job.is_urgent %}
+                                            <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                                            {% elif job.is_warning %}
+                                            <i class="bi bi-exclamation-circle text-warning"></i>
+                                            {% endif %}
+                                            <i class="bi bi-chevron-right mv-expand-icon text-muted"></i>
+                                        </div>
+                                    </div>
+                                    <div class="mv-job-name">
+                                        {{ job.production_order.item.name[:30] if job.production_order and job.production_order.item else '' }}
+                                    </div>
+                                    <div class="mv-job-meta">
+                                        <span><i class="bi bi-box"></i> {{ job.production_order.quantity_required|int if job.production_order else 0 }} pcs</span>
+                                        {% if job.production_order and job.production_order.due_date %}
+                                        <span class="text-{{ job.urgency_class }}">
+                                            <i class="bi bi-clock"></i> {{ job.production_order.due_date.strftime('%d/%m') }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <!-- Expanded details (hidden by default, shown on tap) -->
+                                    <div class="mv-job-expanded" style="display:none;">
+                                        <hr class="my-1">
+                                        <div class="mv-job-expanded-row">
+                                            <span class="text-muted">Status:</span>
+                                            <span class="badge bg-{{ 'primary' if job.status == 'scheduled' else 'success' if job.status == 'in_progress' else 'secondary' }}">{{ job.status }}</span>
+                                        </div>
+                                        {% if job.production_order and job.production_order.item %}
+                                        <div class="mv-job-expanded-row">
+                                            <span class="text-muted">Item:</span>
+                                            <span>{{ job.production_order.item.name }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if job.production_order and job.production_order.due_date %}
+                                        <div class="mv-job-expanded-row">
+                                            <span class="text-muted">Due:</span>
+                                            <span>{{ job.production_order.due_date.strftime('%d %b %Y') }}</span>
+                                        </div>
+                                        {% endif %}
+                                        <a href="/scheduling/job/{{ job.id }}" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                                            <i class="bi bi-eye me-1"></i>View Job Details
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+
+                                {% if not day_jobs %}
+                                <div class="mv-empty-slot">
+                                    <i class="bi bi-plus-circle"></i>
+                                    <span>No jobs</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Swipe hint (shown briefly on first load) -->
+            <div class="swipe-hint" id="swipeHint">
+                <i class="bi bi-hand-index"></i> Swipe left/right or use arrows to switch machines
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Sidebar - Unscheduled Orders (collapsible on tablet)         -->
+        <!-- ============================================================ -->
+        <div class="col-lg-3 col-xl-2 mt-3 mt-lg-0" id="sidebarContainer">
+            <!-- Overlay backdrop for tablet sidebar -->
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+            <div class="schedule-sidebar" id="scheduleSidebar">
+                <!-- Close button for tablet overlay mode -->
+                <button class="btn btn-sm btn-outline-secondary sidebar-close-btn d-lg-none" id="sidebarClose">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+                <div class="card">
+                    <div class="card-header bg-warning bg-opacity-25">
+                        <i class="bi bi-list-task me-2"></i>Jobs to Schedule ({{ unscheduled_orders|length }})
+                    </div>
+                    <div class="card-body p-2" id="unscheduledContainer" style="max-height: 500px; overflow-y: auto;">
+                        {% if unscheduled_orders %}
+                        {% for order in unscheduled_orders %}
+                        <div class="unscheduled-job mb-2 p-2 border rounded bg-white"
+                             draggable="true"
+                             data-order-id="{{ order.id }}"
+                             data-sku="{{ order.item.sku if order.item else 'N/A' }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <strong class="small">{{ order.item.sku if order.item else 'N/A' }}</strong>
+                                {% if order.priority <= 3 %}
+                                <span class="badge bg-danger">P{{ order.priority }}</span>
+                                {% elif order.priority <= 5 %}
+                                <span class="badge bg-warning text-dark">P{{ order.priority }}</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block text-truncate">{{ order.item.name if order.item else '' }}</small>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small>{{ order.quantity_required|int }} pcs</small>
+                                {% if order.due_date %}
+                                <small class="text-{{ 'danger' if (order.due_date - today).days <= 2 else 'warning' if (order.due_date - today).days <= 5 else 'muted' }}">
+                                    <i class="bi bi-calendar"></i> {{ order.due_date.strftime('%d/%m') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            {% if order.customer %}
+                            <small class="text-info d-block mt-1">
+                                <i class="bi bi-building"></i> {{ order.customer.name[:15] if order.customer else '' }}
+                            </small>
+                            {% elif order.sales_order and order.sales_order.customer %}
+                            <small class="text-info d-block mt-1">
+                                <i class="bi bi-building"></i> {{ order.sales_order.customer.name[:15] }}
                             </small>
                             {% endif %}
+
+                            <!-- Quick-assign button for Machine View on tablet -->
+                            <button class="btn btn-xs btn-outline-primary w-100 mt-1 quick-assign-btn d-none"
+                                    data-order-id="{{ order.id }}"
+                                    data-sku="{{ order.item.sku if order.item else 'N/A' }}">
+                                <i class="bi bi-calendar-plus me-1"></i>Assign to Machine
+                            </button>
                         </div>
-                        {% if order.customer %}
-                        <small class="text-info d-block mt-1">
-                            <i class="bi bi-building"></i> {{ order.customer.name[:15] if order.customer else '' }}
-                        </small>
-                        {% elif order.sales_order and order.sales_order.customer %}
-                        <small class="text-info d-block mt-1">
-                            <i class="bi bi-building"></i> {{ order.sales_order.customer.name[:15] }}
-                        </small>
+                        {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle fs-3 d-block mb-2 text-success"></i>
+                            <p class="small mb-0">All jobs scheduled!</p>
+                        </div>
                         {% endif %}
                     </div>
-                    {% endfor %}
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-check-circle fs-3 d-block mb-2 text-success"></i>
-                        <p class="small mb-0">All jobs scheduled!</p>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-graph-up me-2"></i>This Week
                     </div>
-                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Scheduled</span>
+                            <strong>{{ scheduled_count }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Unscheduled</span>
+                            <strong class="{% if unscheduled_orders|length > 0 %}text-warning{% endif %}">{{ unscheduled_orders|length }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Machines</span>
+                            <strong>{{ machines|length }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card mt-3">
+                    <div class="card-body p-2">
+                        <a href="{{ url_for('production.order_create') }}" class="btn btn-primary btn-sm w-100 mb-2">
+                            <i class="bi bi-plus-circle me-1"></i>New Production Order
+                        </a>
+                        <a href="{{ url_for('scheduling.technician_view') }}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="bi bi-cpu me-1"></i>Shop Floor View
+                        </a>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Quick Stats -->
-            <div class="card mt-3">
-                <div class="card-header">
-                    <i class="bi bi-graph-up me-2"></i>This Week
+<!-- Quick Assign Modal (for tablet touch-based scheduling) -->
+<div class="modal fade" id="quickAssignModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-calendar-plus me-1"></i>Assign Job: <span id="qaSkuLabel"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="qaOrderId">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Machine</label>
+                    <div class="list-group" id="qaMachineList">
+                        {% for machine_id, machine_data in schedule_grid.items() %}
+                        <button type="button" class="list-group-item list-group-item-action qa-machine-option"
+                                data-machine-id="{{ machine_id }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ machine_data.machine.name }} ({{ machine_data.machine.tonnage }}T)</span>
+                                <span class="badge bg-{{ 'success' if machine_data.machine.status == 'running' else 'secondary' }}">{{ machine_data.machine.status }}</span>
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Scheduled</span>
-                        <strong>{{ scheduled_count }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Unscheduled</span>
-                        <strong class="{% if unscheduled_orders|length > 0 %}text-warning{% endif %}">{{ unscheduled_orders|length }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Machines</span>
-                        <strong>{{ machines|length }}</strong>
+                <div class="mb-3" id="qaDateSection" style="display:none;">
+                    <label class="form-label fw-bold">Select Day</label>
+                    <div class="d-flex gap-2 flex-wrap" id="qaDayList">
+                        {% for day in week_days %}
+                        <button type="button" class="btn btn-outline-secondary qa-day-option {% if day.is_today %}btn-primary text-white{% endif %}"
+                                data-date="{{ day.date.strftime('%Y-%m-%d') }}">
+                            <div class="fw-bold">{{ day.short_name }}</div>
+                            <small>{{ day.day_num }}</small>
+                        </button>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
-
-            <!-- Quick Actions -->
-            <div class="card mt-3">
-                <div class="card-body p-2">
-                    <a href="{{ url_for('production.order_create') }}" class="btn btn-primary btn-sm w-100 mb-2">
-                        <i class="bi bi-plus-circle me-1"></i>New Production Order
-                    </a>
-                    <a href="{{ url_for('scheduling.technician_view') }}" class="btn btn-outline-secondary btn-sm w-100">
-                        <i class="bi bi-cpu me-1"></i>Shop Floor View
-                    </a>
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="qaConfirmBtn" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Schedule Job
+                </button>
             </div>
         </div>
     </div>
@@ -209,6 +429,9 @@
 
 {% block extra_css %}
 <style>
+/* ============================================================
+   GRID VIEW - schedule-table layout
+   ============================================================ */
 .schedule-table {
     table-layout: fixed;
 }
@@ -225,6 +448,9 @@
     outline: 2px dashed #0d6efd;
 }
 
+/* ============================================================
+   GRID VIEW - job-card styling
+   ============================================================ */
 .job-card {
     background: white;
     border-radius: 6px;
@@ -243,11 +469,6 @@
 
 .job-card:active {
     cursor: grabbing;
-}
-
-.job-card.dragging {
-    opacity: 0.5;
-    transform: rotate(2deg);
 }
 
 .job-card.job-in_progress {
@@ -306,6 +527,15 @@
     opacity: 1;
 }
 
+/* ============================================================
+   DRAG-AND-DROP visual feedback
+   ============================================================ */
+.job-card.dragging,
+.mv-job-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
 .unscheduled-job {
     cursor: grab;
     transition: all 0.2s;
@@ -326,8 +556,354 @@
     transform: scale(0.95);
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
+/* ============================================================
+   VIEW TOGGLE
+   ============================================================ */
+.view-toggle-group .btn.active {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+
+/* ============================================================
+   MACHINE VIEW - Navigation bar
+   ============================================================ */
+.machine-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.machine-nav-pills {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    flex: 1;
+    padding: 2px 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+}
+
+.machine-nav-pills::-webkit-scrollbar {
+    display: none;
+}
+
+.machine-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 14px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    min-width: fit-content;
+    flex-shrink: 0;
+}
+
+.machine-pill:hover {
+    border-color: #0d6efd;
+    background: #f0f6ff;
+}
+
+.machine-pill.active {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #fff;
+}
+
+.machine-pill.active .machine-pill-tonnage {
+    color: rgba(255,255,255,0.8);
+}
+
+.machine-pill-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.machine-pill-tonnage {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.machine-pill-status {
+    font-size: 0.65rem;
+    margin-top: 2px;
+}
+
+/* ============================================================
+   MACHINE VIEW - Week card (one per machine)
+   ============================================================ */
+.machine-view-swiper {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+.machine-week-card {
+    display: none;
+    animation: fadeSlideIn 0.25s ease-out;
+}
+
+.machine-week-card.active {
+    display: block;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.machine-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ============================================================
+   MACHINE VIEW - Horizontal day timeline
+   ============================================================ */
+.machine-timeline {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.timeline-day {
+    flex: 0 0 auto;
+    width: 260px;
+    min-width: 260px;
+    scroll-snap-align: start;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.timeline-day.timeline-today {
+    box-shadow: 0 0 0 2px #0d6efd, 0 2px 8px rgba(13,110,253,0.15);
+}
+
+.timeline-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.timeline-day-jobs {
+    padding: 8px;
+    flex: 1;
+    min-height: 120px;
+}
+
+/* ============================================================
+   MACHINE VIEW - Larger, more readable job cards
+   ============================================================ */
+.mv-job-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-left: 4px solid #0d6efd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mv-job-card:active {
+    transform: scale(0.98);
+    background: #f8f9fa;
+}
+
+.mv-job-card.job-in_progress {
+    border-left-color: #198754;
+    background: #d1e7dd;
+}
+
+.mv-job-card.job-completed {
+    border-left-color: #6c757d;
+    background: #e9ecef;
+    opacity: 0.7;
+}
+
+.mv-job-card.border-danger {
+    border-left-color: #dc3545;
+}
+
+.mv-job-card.border-warning {
+    border-left-color: #ffc107;
+}
+
+.mv-job-card.expanded {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    border-left-width: 5px;
+}
+
+.mv-job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mv-job-sku {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.mv-job-icons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.mv-expand-icon {
+    transition: transform 0.2s;
+    font-size: 0.8rem;
+}
+
+.mv-job-card.expanded .mv-expand-icon {
+    transform: rotate(90deg);
+}
+
+.mv-job-name {
+    font-size: 0.85rem;
+    color: #495057;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.mv-job-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.mv-job-meta i {
+    font-size: 0.75rem;
+}
+
+.mv-job-expanded {
+    font-size: 0.85rem;
+}
+
+.mv-job-expanded-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+}
+
+.mv-empty-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    color: #adb5bd;
+    gap: 4px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.timeline-day-jobs.drag-over .mv-empty-slot,
+.timeline-day-jobs.drag-over {
+    background-color: rgba(13, 110, 253, 0.08);
+}
+
+.timeline-day-jobs.drag-over .mv-empty-slot {
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+/* ============================================================
+   MACHINE VIEW - Swipe hint
+   ============================================================ */
+.swipe-hint {
+    text-align: center;
+    padding: 10px;
+    color: #6c757d;
+    font-size: 0.85rem;
+    opacity: 1;
+    transition: opacity 0.5s;
+}
+
+.swipe-hint.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ============================================================
+   SIDEBAR - Collapsible on tablet
+   ============================================================ */
+.schedule-sidebar {
+    position: relative;
+}
+
+.sidebar-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    display: none;
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+/* Quick-assign button hidden by default, shown via JS in machine view on tablet */
+.btn-xs {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+/* Quick Assign Modal styling */
+.qa-machine-option.active,
+.qa-day-option.active-selected {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+    border-color: #0d6efd !important;
+}
+
+.qa-day-option {
+    min-width: 60px;
+    text-align: center;
+    padding: 6px 10px;
+}
+
+/* ============================================================
+   MOBILE adjustments (< 768px)
+   ============================================================ */
+@media (max-width: 767.98px) {
     .schedule-table th,
     .schedule-table td {
         min-width: 100px !important;
@@ -342,6 +918,162 @@
     .job-sku {
         font-size: 0.75rem;
     }
+
+    .timeline-day {
+        width: 220px;
+        min-width: 220px;
+    }
+
+    .machine-pill {
+        padding: 4px 10px;
+    }
+
+    .machine-pill-name {
+        font-size: 0.8rem;
+    }
+}
+
+/* ============================================================
+   iPAD / TABLET breakpoint (768px - 1024px)
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* Make page header more compact */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+
+    .page-header > div:last-child {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Grid View: tighter cells on tablet */
+    .schedule-table th,
+    .schedule-table td {
+        min-width: 110px !important;
+        padding: 0.25rem !important;
+        font-size: 0.8rem;
+    }
+
+    .schedule-table th:first-child,
+    .schedule-table td:first-child {
+        min-width: 100px !important;
+        width: 100px !important;
+    }
+
+    .job-card {
+        padding: 4px 6px;
+        font-size: 0.78rem;
+    }
+
+    .job-sku {
+        font-size: 0.75rem;
+    }
+
+    .job-details small {
+        font-size: 0.7rem;
+    }
+
+    /* Machine View: optimize timeline for iPad width */
+    .timeline-day {
+        width: calc((100vw - 80px) / 3.5);
+        min-width: 200px;
+    }
+
+    .machine-timeline {
+        scroll-padding-left: 8px;
+    }
+
+    .mv-job-card {
+        padding: 12px 14px;
+    }
+
+    .mv-job-sku {
+        font-size: 1rem;
+    }
+
+    .mv-job-name {
+        font-size: 0.9rem;
+    }
+
+    .mv-job-meta {
+        font-size: 0.85rem;
+    }
+
+    /* Sidebar: Slide-over panel on tablet */
+    #sidebarContainer {
+        position: fixed;
+        top: 0;
+        right: -320px;
+        width: 300px;
+        height: 100vh;
+        z-index: 1050;
+        padding: 60px 12px 12px 12px;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        background: #f8f9fa;
+    }
+
+    #sidebarContainer.sidebar-open {
+        right: 0;
+        box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    }
+
+    .sidebar-close-btn {
+        display: block !important;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.3);
+        z-index: 1049;
+        display: none;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+    }
+
+    /* Grid view: use full width when sidebar is collapsed */
+    #gridViewContainer {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Show quick-assign buttons in unscheduled jobs */
+    .quick-assign-btn {
+        display: block !important;
+    }
+}
+
+/* ============================================================
+   iPad Pro / larger tablets (1025px - 1199px)
+   ============================================================ */
+@media (min-width: 1025px) and (max-width: 1199px) {
+    .timeline-day {
+        width: calc((100vw - 300px) / 5);
+        min-width: 180px;
+    }
+}
+
+/* ============================================================
+   LARGE DESKTOP (>= 1200px) - full grid with sidebar
+   ============================================================ */
+@media (min-width: 1200px) {
+    .timeline-day {
+        width: calc((100vw - 340px) / 7);
+        min-width: 160px;
+    }
+
+    .mv-job-card {
+        padding: 10px 14px;
+    }
 }
 </style>
 {% endblock %}
@@ -351,17 +1083,330 @@
 const csrfToken = '{{ csrf_token() }}';
 let draggedElement = null;
 let draggedType = null; // 'order' or 'job'
+let currentMachineIndex = 0;
+let totalMachines = document.querySelectorAll('.machine-week-card').length;
+let currentView = 'grid'; // 'grid' or 'machine'
 
-// Initialize drag and drop
-document.addEventListener('DOMContentLoaded', function() {
+// ============================================================
+// VIEW DETECTION AND TOGGLE
+// ============================================================
+function isTablet() {
+    const w = window.innerWidth;
+    return w >= 768 && w <= 1024;
+}
+
+function isMobile() {
+    return window.innerWidth < 768;
+}
+
+function setView(view, savePreference) {
+    currentView = view;
+
+    const gridContainer = document.getElementById('gridViewContainer');
+    const machineContainer = document.getElementById('machineViewContainer');
+    const btnGrid = document.getElementById('btnGridView');
+    const btnMachine = document.getElementById('btnMachineView');
+
+    if (view === 'machine') {
+        gridContainer.style.display = 'none';
+        machineContainer.style.display = 'block';
+        btnGrid.classList.remove('active');
+        btnMachine.classList.add('active');
+        // Show quick-assign buttons in sidebar
+        document.querySelectorAll('.quick-assign-btn').forEach(b => b.classList.remove('d-none'));
+    } else {
+        gridContainer.style.display = '';
+        machineContainer.style.display = 'none';
+        btnGrid.classList.add('active');
+        btnMachine.classList.remove('active');
+        document.querySelectorAll('.quick-assign-btn').forEach(b => b.classList.add('d-none'));
+    }
+
+    if (savePreference) {
+        try { localStorage.setItem('schedule_view_pref', view); } catch(e) {}
+    }
+}
+
+function initViewToggle() {
+    // Check saved preference, otherwise default based on screen size
+    let savedPref = null;
+    try { savedPref = localStorage.getItem('schedule_view_pref'); } catch(e) {}
+
+    if (savedPref) {
+        setView(savedPref, false);
+    } else if (isTablet() || isMobile()) {
+        setView('machine', false);
+    } else {
+        setView('grid', false);
+    }
+
+    // Toggle buttons
+    document.getElementById('btnGridView').addEventListener('click', function() {
+        setView('grid', true);
+    });
+    document.getElementById('btnMachineView').addEventListener('click', function() {
+        setView('machine', true);
+    });
+}
+
+// ============================================================
+// MACHINE VIEW - Navigation (prev/next/pills)
+// ============================================================
+function showMachine(index) {
+    if (index < 0 || index >= totalMachines) return;
+    currentMachineIndex = index;
+
+    // Update cards
+    document.querySelectorAll('.machine-week-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    const targetCard = document.querySelector('.machine-week-card[data-machine-index="' + index + '"]');
+    if (targetCard) targetCard.classList.add('active');
+
+    // Update pills
+    document.querySelectorAll('.machine-pill').forEach(pill => {
+        pill.classList.remove('active');
+    });
+    const targetPill = document.querySelector('.machine-pill[data-machine-index="' + index + '"]');
+    if (targetPill) {
+        targetPill.classList.add('active');
+        // Scroll pill into view
+        targetPill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+
+    // Scroll today's column into view
+    if (targetCard) {
+        const todayCol = targetCard.querySelector('.timeline-today');
+        if (todayCol) {
+            setTimeout(function() {
+                todayCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }, 300);
+        }
+    }
+}
+
+function initMachineNav() {
+    document.getElementById('prevMachine').addEventListener('click', function() {
+        showMachine(currentMachineIndex - 1);
+    });
+    document.getElementById('nextMachine').addEventListener('click', function() {
+        showMachine(currentMachineIndex + 1);
+    });
+
+    document.querySelectorAll('.machine-pill').forEach(function(pill) {
+        pill.addEventListener('click', function() {
+            showMachine(parseInt(this.dataset.machineIndex));
+        });
+    });
+
+    // Hide swipe hint after 4 seconds
+    setTimeout(function() {
+        const hint = document.getElementById('swipeHint');
+        if (hint) hint.classList.add('hidden');
+    }, 4000);
+}
+
+// ============================================================
+// MACHINE VIEW - Swipe gesture support
+// ============================================================
+function initSwipeGestures() {
+    const swiper = document.getElementById('machineSwiper');
+    if (!swiper) return;
+
+    let startX = 0;
+    let startY = 0;
+    let distX = 0;
+    let distY = 0;
+    let swiping = false;
+
+    swiper.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        distX = 0;
+        distY = 0;
+        swiping = true;
+    }, { passive: true });
+
+    swiper.addEventListener('touchmove', function(e) {
+        if (!swiping) return;
+        const touch = e.touches[0];
+        distX = touch.clientX - startX;
+        distY = touch.clientY - startY;
+    }, { passive: true });
+
+    swiper.addEventListener('touchend', function(e) {
+        if (!swiping) return;
+        swiping = false;
+
+        // Only trigger if horizontal swipe is dominant and long enough
+        if (Math.abs(distX) > 60 && Math.abs(distX) > Math.abs(distY) * 1.5) {
+            if (distX < 0) {
+                // Swipe left = next machine
+                showMachine(currentMachineIndex + 1);
+            } else {
+                // Swipe right = previous machine
+                showMachine(currentMachineIndex - 1);
+            }
+        }
+    }, { passive: true });
+}
+
+// ============================================================
+// MACHINE VIEW - Tap to expand job details
+// ============================================================
+function initJobCardTap() {
+    document.querySelectorAll('.mv-job-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            // Don't expand if user is dragging
+            if (this.classList.contains('dragging')) return;
+            // Don't interfere with link clicks inside expanded area
+            if (e.target.closest('a')) return;
+
+            const expanded = this.querySelector('.mv-job-expanded');
+            if (!expanded) return;
+
+            const isExpanded = this.classList.contains('expanded');
+
+            // Collapse all other expanded cards in the same day column
+            const parentDay = this.closest('.timeline-day-jobs');
+            if (parentDay) {
+                parentDay.querySelectorAll('.mv-job-card.expanded').forEach(function(other) {
+                    if (other !== card) {
+                        other.classList.remove('expanded');
+                        other.querySelector('.mv-job-expanded').style.display = 'none';
+                    }
+                });
+            }
+
+            if (isExpanded) {
+                this.classList.remove('expanded');
+                expanded.style.display = 'none';
+            } else {
+                this.classList.add('expanded');
+                expanded.style.display = 'block';
+            }
+        });
+    });
+}
+
+// ============================================================
+// SIDEBAR - Toggle for tablet
+// ============================================================
+function initSidebarToggle() {
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebarContainer');
+    const overlay = document.getElementById('sidebarOverlay');
+    const closeBtn = document.getElementById('sidebarClose');
+
+    function openSidebar() {
+        sidebar.classList.add('sidebar-open');
+        overlay.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('sidebar-open');
+        overlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', openSidebar);
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSidebar);
+    }
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+}
+
+// ============================================================
+// QUICK ASSIGN MODAL (touch-friendly alternative to drag-drop)
+// ============================================================
+let qaSelectedMachine = null;
+let qaSelectedDate = null;
+
+function initQuickAssign() {
+    // Quick assign button clicks
+    document.querySelectorAll('.quick-assign-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const orderId = this.dataset.orderId;
+            const sku = this.dataset.sku;
+            document.getElementById('qaOrderId').value = orderId;
+            document.getElementById('qaSkuLabel').textContent = sku;
+            qaSelectedMachine = null;
+            qaSelectedDate = null;
+            document.getElementById('qaDateSection').style.display = 'none';
+            document.getElementById('qaConfirmBtn').disabled = true;
+
+            // Reset selections
+            document.querySelectorAll('.qa-machine-option').forEach(function(opt) {
+                opt.classList.remove('active');
+            });
+            document.querySelectorAll('.qa-day-option').forEach(function(opt) {
+                opt.classList.remove('active-selected');
+            });
+
+            const modal = new bootstrap.Modal(document.getElementById('quickAssignModal'));
+            modal.show();
+        });
+    });
+
+    // Machine selection
+    document.querySelectorAll('.qa-machine-option').forEach(function(opt) {
+        opt.addEventListener('click', function() {
+            document.querySelectorAll('.qa-machine-option').forEach(function(o) {
+                o.classList.remove('active');
+            });
+            this.classList.add('active');
+            qaSelectedMachine = this.dataset.machineId;
+            document.getElementById('qaDateSection').style.display = 'block';
+            updateQaConfirmState();
+        });
+    });
+
+    // Day selection
+    document.querySelectorAll('.qa-day-option').forEach(function(opt) {
+        opt.addEventListener('click', function() {
+            document.querySelectorAll('.qa-day-option').forEach(function(o) {
+                o.classList.remove('active-selected');
+            });
+            this.classList.add('active-selected');
+            qaSelectedDate = this.dataset.date;
+            updateQaConfirmState();
+        });
+    });
+
+    // Confirm
+    document.getElementById('qaConfirmBtn').addEventListener('click', function() {
+        const orderId = document.getElementById('qaOrderId').value;
+        const sku = document.getElementById('qaSkuLabel').textContent;
+        if (orderId && qaSelectedMachine && qaSelectedDate) {
+            scheduleJob(orderId, qaSelectedMachine, qaSelectedDate, sku);
+            bootstrap.Modal.getInstance(document.getElementById('quickAssignModal')).hide();
+        }
+    });
+}
+
+function updateQaConfirmState() {
+    document.getElementById('qaConfirmBtn').disabled = !(qaSelectedMachine && qaSelectedDate);
+}
+
+// ============================================================
+// DRAG AND DROP - Grid View (original desktop functionality)
+// ============================================================
+function initDragAndDrop() {
     // Setup unscheduled order dragging
-    document.querySelectorAll('.unscheduled-job').forEach(el => {
+    document.querySelectorAll('.unscheduled-job').forEach(function(el) {
         el.addEventListener('dragstart', handleDragStart);
         el.addEventListener('dragend', handleDragEnd);
     });
 
-    // Setup scheduled job dragging
-    document.querySelectorAll('.job-card').forEach(el => {
+    // Setup scheduled job dragging (grid view)
+    document.querySelectorAll('.job-card').forEach(function(el) {
         el.addEventListener('dragstart', handleJobDragStart);
         el.addEventListener('dragend', handleDragEnd);
         el.addEventListener('click', function(e) {
@@ -372,13 +1417,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Setup drop zones
-    document.querySelectorAll('.schedule-cell').forEach(cell => {
+    // Setup scheduled job dragging (machine view)
+    document.querySelectorAll('.mv-job-card').forEach(function(el) {
+        el.addEventListener('dragstart', handleJobDragStart);
+        el.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Setup drop zones (both grid cells and machine view day columns)
+    document.querySelectorAll('.schedule-cell').forEach(function(cell) {
         cell.addEventListener('dragover', handleDragOver);
         cell.addEventListener('dragleave', handleDragLeave);
         cell.addEventListener('drop', handleDrop);
     });
-});
+}
 
 function handleDragStart(e) {
     draggedElement = this;
@@ -399,7 +1450,7 @@ function handleJobDragStart(e) {
 
 function handleDragEnd(e) {
     this.classList.remove('dragging');
-    document.querySelectorAll('.schedule-cell').forEach(cell => {
+    document.querySelectorAll('.schedule-cell').forEach(function(cell) {
         cell.classList.remove('drag-over');
     });
     draggedElement = null;
@@ -436,9 +1487,10 @@ function handleDrop(e) {
     }
 }
 
+// ============================================================
+// API CALLS
+// ============================================================
 function scheduleJob(orderId, machineId, date, sku) {
-    console.log('Scheduling job:', orderId, machineId, date);
-
     fetch('/scheduling/api/schedule-job', {
         method: 'POST',
         headers: {
@@ -451,29 +1503,25 @@ function scheduleJob(orderId, machineId, date, sku) {
             scheduled_date: date
         })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
         if (data.success) {
             showToast('Job ' + (sku || '') + ' scheduled successfully!');
-            // Remove from unscheduled list
             if (draggedElement) {
                 draggedElement.remove();
             }
-            // Reload to show updated schedule
-            setTimeout(() => location.reload(), 500);
+            setTimeout(function() { location.reload(); }, 500);
         } else {
             showToast('Error: ' + (data.error || 'Failed to schedule job'), true);
         }
     })
-    .catch(err => {
+    .catch(function(err) {
         console.error('Error:', err);
         showToast('Error scheduling job', true);
     });
 }
 
 function moveJob(jobId, machineId, date) {
-    console.log('Moving job:', jobId, machineId, date);
-
     fetch('/scheduling/api/move-job', {
         method: 'POST',
         headers: {
@@ -486,22 +1534,23 @@ function moveJob(jobId, machineId, date) {
             scheduled_date: date
         })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
         if (data.success) {
             showToast('Job moved successfully!');
-            setTimeout(() => location.reload(), 500);
+            setTimeout(function() { location.reload(); }, 500);
         } else {
             showToast('Error: ' + (data.error || 'Failed to move job'), true);
         }
     })
-    .catch(err => {
+    .catch(function(err) {
         console.error('Error:', err);
         showToast('Error moving job', true);
     });
 }
 
-function showToast(message, isError = false) {
+function showToast(message, isError) {
+    isError = isError || false;
     const toast = document.getElementById('scheduleToast');
     const toastBody = document.getElementById('toastMessage');
     toastBody.textContent = message;
@@ -512,8 +1561,69 @@ function showToast(message, isError = false) {
         toast.querySelector('.toast-header i').className = 'bi bi-calendar-check me-2 text-success';
     }
 
-    const bsToast = new bootstrap.Toast(toast);
+    var bsToast = new bootstrap.Toast(toast);
     bsToast.show();
 }
+
+// ============================================================
+// KEYBOARD NAVIGATION (for machine view)
+// ============================================================
+function initKeyboardNav() {
+    document.addEventListener('keydown', function(e) {
+        if (currentView !== 'machine') return;
+        // Don't interfere if user is in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            showMachine(currentMachineIndex - 1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            showMachine(currentMachineIndex + 1);
+        }
+    });
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    initViewToggle();
+    initMachineNav();
+    initSwipeGestures();
+    initJobCardTap();
+    initSidebarToggle();
+    initQuickAssign();
+    initDragAndDrop();
+    initKeyboardNav();
+
+    // On first load in machine view, scroll today into view
+    if (currentView === 'machine') {
+        const activeCard = document.querySelector('.machine-week-card.active');
+        if (activeCard) {
+            const todayCol = activeCard.querySelector('.timeline-today');
+            if (todayCol) {
+                setTimeout(function() {
+                    todayCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }, 500);
+            }
+        }
+    }
+});
+
+// Handle orientation change on tablet
+window.addEventListener('resize', function() {
+    // If no saved preference, auto-switch view based on width
+    var savedPref = null;
+    try { savedPref = localStorage.getItem('schedule_view_pref'); } catch(e) {}
+
+    if (!savedPref) {
+        if (isTablet() || isMobile()) {
+            if (currentView !== 'machine') setView('machine', false);
+        } else {
+            if (currentView !== 'grid') setView('grid', false);
+        }
+    }
+});
 </script>
 {% endblock %}

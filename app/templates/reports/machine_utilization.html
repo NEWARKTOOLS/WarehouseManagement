@@ -2,11 +2,41 @@
 
 {% block title %}Machine Utilization Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar, .mobile-header, .mobile-bottom-nav, .offcanvas, .no-print { display: none !important; }
+        .main-content { margin-left: 0 !important; padding: 0 !important; }
+        .print-header { display: block !important; }
+        body { font-size: 12px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; break-inside: avoid; }
+        .page-header { padding: 0 !important; margin-bottom: 0.5rem !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+        .chart-container { break-inside: avoid; }
+        canvas { max-height: 350px !important; }
+    }
+    .print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
+    <!-- Print Header -->
+    <div class="print-header mb-3">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+            <div>
+                <h4 class="mb-0">Machine Utilization Report</h4>
+                <small class="text-muted">Generated: {{ now().strftime('%d/%m/%Y %H:%M') if now is defined else '' }}</small>
+            </div>
+            <div class="text-end">
+                <strong>Warehouse Management System</strong>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb" class="no-print">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
                     <li class="breadcrumb-item active">Machine Utilization</li>
@@ -14,7 +44,27 @@
             </nav>
             <h1><i class="bi bi-cpu me-2"></i>Machine Utilization</h1>
         </div>
+        <div class="no-print">
+            <button onclick="exportMachineCSV()" class="btn btn-outline-success btn-sm me-1">
+                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Print Report
+            </button>
+        </div>
     </div>
+
+    <!-- Completed Jobs by Machine Chart -->
+    {% if machine_stats %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-bar-chart me-1"></i>Completed Jobs by Machine
+        </div>
+        <div class="card-body chart-container">
+            <canvas id="machineChart" height="350"></canvas>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Machine Cards -->
     <div class="row g-3">
@@ -100,4 +150,107 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function exportMachineCSV() {
+    let csv = [];
+    csv.push('"Machine Utilization Report"');
+    csv.push('');
+    csv.push('"Machine","Code","Tonnage","Status","Active Jobs","Completed Jobs"');
+    {% for stats in machine_stats %}
+    csv.push({{ stats.machine.name|tojson }} + ',' + {{ stats.machine.code|tojson }} + ',"{{ stats.machine.tonnage }}T","{{ stats.status|replace("_", " ")|title }}","{{ stats.active_jobs }}","{{ stats.completed_jobs }}"');
+    {% endfor %}
+
+    const csvContent = csv.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'machine_utilization.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// Completed Jobs by Machine - Horizontal Bar Chart
+{% if machine_stats %}
+(function() {
+    const machines = [
+        {% for stats in machine_stats %}
+        {
+            name: {{ stats.machine.name|tojson }},
+            completed: {{ stats.completed_jobs }},
+            active: {{ stats.active_jobs }},
+            status: {{ stats.status|tojson }}
+        },
+        {% endfor %}
+    ];
+
+    // Sort by completed jobs descending
+    machines.sort(function(a, b) { return b.completed - a.completed; });
+
+    const statusColors = {
+        'running': 'rgba(25, 135, 84, 0.7)',
+        'idle': 'rgba(108, 117, 125, 0.7)',
+        'maintenance': 'rgba(255, 193, 7, 0.7)',
+        'down': 'rgba(220, 53, 69, 0.7)'
+    };
+
+    const bgColors = machines.map(function(m) { return statusColors[m.status] || 'rgba(108, 117, 125, 0.7)'; });
+    const borderColors = bgColors.map(function(c) { return c.replace('0.7', '1'); });
+
+    const ctx = document.getElementById('machineChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: machines.map(function(m) { return m.name; }),
+            datasets: [
+                {
+                    label: 'Completed Jobs',
+                    data: machines.map(function(m) { return m.completed; }),
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                },
+                {
+                    label: 'Active Jobs',
+                    data: machines.map(function(m) { return m.active; }),
+                    backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const machine = machines[context.dataIndex];
+                            return 'Status: ' + machine.status.replace('_', ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: { display: true, text: 'Jobs' },
+                    ticks: { stepSize: 1 }
+                },
+                y: {
+                    stacked: true
+                }
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
 {% endblock %}

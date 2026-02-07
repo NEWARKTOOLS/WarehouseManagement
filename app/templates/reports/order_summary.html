@@ -2,11 +2,41 @@
 
 {% block title %}Order Summary Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar, .mobile-header, .mobile-bottom-nav, .offcanvas, .no-print { display: none !important; }
+        .main-content { margin-left: 0 !important; padding: 0 !important; }
+        .print-header { display: block !important; }
+        body { font-size: 12px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; break-inside: avoid; }
+        .page-header { padding: 0 !important; margin-bottom: 0.5rem !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+        .chart-container { break-inside: avoid; }
+        canvas { max-height: 300px !important; }
+    }
+    .print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
+    <!-- Print Header -->
+    <div class="print-header mb-3">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+            <div>
+                <h4 class="mb-0">Order Summary Report</h4>
+                <small class="text-muted">Period: {{ start_date }} to {{ end_date }}</small>
+            </div>
+            <div class="text-end">
+                <strong>Warehouse Management System</strong>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb" class="no-print">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
                     <li class="breadcrumb-item active">Order Summary</li>
@@ -14,10 +44,18 @@
             </nav>
             <h1><i class="bi bi-cart me-2"></i>Order Summary</h1>
         </div>
+        <div class="no-print">
+            <button onclick="exportOrderCSV()" class="btn btn-outline-success btn-sm me-1">
+                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Print Report
+            </button>
+        </div>
     </div>
 
     <!-- Date Filter -->
-    <div class="card mb-3">
+    <div class="card mb-3 no-print">
         <div class="card-body">
             <form method="GET" class="row g-2">
                 <div class="col-5 col-md-3">
@@ -86,6 +124,34 @@
         </div>
     </div>
 
+    <!-- Charts Row -->
+    {% if status_counts %}
+    <div class="row g-3 mb-3">
+        <!-- Orders by Status Chart -->
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-bar-chart me-1"></i>Orders by Status
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="statusChart" height="280"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Order Values Over Time Chart -->
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-graph-up me-1"></i>Order Values Over Time
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="timelineChart" height="280"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-3">
         <!-- Status Breakdown -->
         <div class="col-12 col-lg-6">
@@ -144,4 +210,176 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function exportOrderCSV() {
+    // Build CSV from status and customer data
+    let csv = [];
+    csv.push('"Order Summary Report"');
+    csv.push('"Period","{{ start_date }}","to","{{ end_date }}"');
+    csv.push('');
+
+    // Status breakdown
+    csv.push('"Status","Count","Value"');
+    {% for status, data in status_counts.items() %}
+    csv.push('"{{ status|replace("_", " ")|title }}","{{ data.count }}","\u00A3{{ "{:,.2f}".format(data.value) }}"');
+    {% endfor %}
+    csv.push('');
+
+    // Top customers
+    csv.push('"Top Customers"');
+    csv.push('"Customer","Orders","Total Value"');
+    {% for data in top_customers %}
+    csv.push({{ data.customer.name|tojson }} + ',"{{ data.order_count }}","\u00A3{{ "{:,.2f}".format(data.total_value) }}"');
+    {% endfor %}
+
+    const csvContent = csv.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'order_summary.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+{% if status_counts %}
+// Orders by Status Bar Chart
+(function() {
+    const statusData = {
+        {% for status, data in status_counts.items() %}
+        {{ status|tojson }}: { count: {{ data.count }}, value: {{ data.value }} },
+        {% endfor %}
+    };
+
+    const statusColors = {
+        'pending': 'rgba(255, 193, 7, 0.7)',
+        'confirmed': 'rgba(13, 110, 253, 0.7)',
+        'in_production': 'rgba(111, 66, 193, 0.7)',
+        'ready': 'rgba(13, 202, 240, 0.7)',
+        'dispatched': 'rgba(25, 135, 84, 0.7)',
+        'invoiced': 'rgba(32, 201, 151, 0.7)',
+        'cancelled': 'rgba(220, 53, 69, 0.7)'
+    };
+
+    const labels = Object.keys(statusData).map(function(s) { return s.replace('_', ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); }); });
+    const counts = Object.values(statusData).map(function(d) { return d.count; });
+    const values = Object.values(statusData).map(function(d) { return d.value; });
+    const bgColors = Object.keys(statusData).map(function(s) { return statusColors[s] || 'rgba(108, 117, 125, 0.7)'; });
+
+    const ctx1 = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Number of Orders',
+                data: counts,
+                backgroundColor: bgColors,
+                borderColor: bgColors.map(function(c) { return c.replace('0.7', '1'); }),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            return 'Value: \u00A3' + values[context.dataIndex].toLocaleString('en-GB', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: { display: true, text: 'Orders' }
+                }
+            }
+        }
+    });
+})();
+
+// Order Values Over Time Line Chart
+(function() {
+    const orderDates = [
+        {% for order in orders %}
+        { date: {{ order.created_at.strftime('%Y-%m-%d')|tojson }}, value: {{ order.total }} },
+        {% endfor %}
+    ];
+
+    if (orderDates.length === 0) return;
+
+    // Group by date
+    const dateMap = {};
+    orderDates.forEach(function(o) {
+        if (!dateMap[o.date]) dateMap[o.date] = 0;
+        dateMap[o.date] += o.value;
+    });
+
+    // Sort by date
+    const sortedDates = Object.keys(dateMap).sort();
+    const dateValues = sortedDates.map(function(d) { return dateMap[d]; });
+
+    // Format dates for display
+    const displayDates = sortedDates.map(function(d) {
+        const parts = d.split('-');
+        return parts[2] + '/' + parts[1];
+    });
+
+    const ctx2 = document.getElementById('timelineChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: displayDates,
+            datasets: [{
+                label: 'Order Value',
+                data: dateValues,
+                borderColor: 'rgba(13, 110, 253, 1)',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '\u00A3' + context.parsed.y.toLocaleString('en-GB', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { maxRotation: 45, minRotation: 0 }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Value (\u00A3)' },
+                    ticks: {
+                        callback: function(value) {
+                            return '\u00A3' + value.toLocaleString('en-GB');
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
 {% endblock %}

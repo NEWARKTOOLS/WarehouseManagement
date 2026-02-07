@@ -23,6 +23,8 @@
     <!-- Suppliers List -->
     <div class="row">
         {% for supplier in suppliers %}
+        {% set material_count = supplier.materials.count() %}
+        {% set material_list = supplier.materials.limit(5).all() %}
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
@@ -50,7 +52,7 @@
 
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="badge bg-light text-dark">{{ supplier.materials | length }} materials</span>
+                            <span class="badge bg-light text-dark">{{ material_count }} materials</span>
                             {% if supplier.lead_time_days %}
                             <span class="badge bg-light text-dark">{{ supplier.lead_time_days }} day lead</span>
                             {% endif %}
@@ -60,15 +62,15 @@
                         </a>
                     </div>
                 </div>
-                {% if supplier.materials %}
+                {% if material_count > 0 %}
                 <div class="card-footer bg-light">
                     <small class="text-muted">Materials:</small>
                     <div class="d-flex flex-wrap gap-1 mt-1">
-                        {% for m in supplier.materials[:5] %}
+                        {% for m in material_list %}
                         <a href="{{ url_for('materials.material_detail', material_id=m.id) }}" class="badge bg-secondary text-decoration-none">{{ m.code }}</a>
                         {% endfor %}
-                        {% if supplier.materials | length > 5 %}
-                        <span class="badge bg-light text-dark">+{{ supplier.materials | length - 5 }} more</span>
+                        {% if material_count > 5 %}
+                        <span class="badge bg-light text-dark">+{{ material_count - 5 }} more</span>
                         {% endif %}
                     </div>
                 </div>

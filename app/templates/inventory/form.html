@@ -7,10 +7,21 @@
 <div class="container-fluid px-3 px-md-4">
     <div class="page-header">
         <h1>{{ 'Edit Item' if item else 'New Item' }}</h1>
+        {% if not item %}
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('inventory.item_create', mode='simple') }}" class="btn btn-{{ 'primary' if mode == 'simple' else 'outline-primary' }}">
+                <i class="bi bi-lightning me-1"></i>Simple
+            </a>
+            <a href="{{ url_for('inventory.item_create', mode='advanced') }}" class="btn btn-{{ 'primary' if mode == 'advanced' else 'outline-primary' }}">
+                <i class="bi bi-sliders me-1"></i>Advanced
+            </a>
+        </div>
+        {% endif %}
     </div>
 
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
 
         <div class="row">
             <div class="col-lg-8">
@@ -21,7 +32,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">SKU *</label>
-                                <input type="text" class="form-control" name="sku" value="{{ item.sku if item else '' }}" {{ 'readonly' if item else 'required' }}>
+                                <input type="text" class="form-control" name="sku" value="{{ item.sku if item else '' }}" {{ 'readonly' if item else 'required' }} style="text-transform: uppercase;">
                             </div>
                             <div class="col-md-8">
                                 <label class="form-label">Name *</label>
@@ -36,10 +47,9 @@
                                 <select class="form-select" name="customer_id">
                                     <option value="">No customer (general stock)</option>
                                     {% for cust in customers %}
-                                    <option value="{{ cust.id }}" {% if item and item.customer_id == cust.id %}selected{% endif %}>{{ cust.name }}{% if cust.code %} ({{ cust.code }}){% endif %}</option>
+                                    <option value="{{ cust.id }}" {% if item and item.customer_id == cust.id %}selected{% endif %}>{{ cust.name }}{% if cust.customer_code %} ({{ cust.customer_code }}){% endif %}</option>
                                     {% endfor %}
                                 </select>
-                                <small class="text-muted">Link this item to a specific customer</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Category</label>
@@ -60,16 +70,11 @@
                                     <option value="regrind" {% if item and item.item_type == 'regrind' %}selected{% endif %}>Regrind</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Physical Properties -->
-                <div class="card mb-3">
-                    <div class="card-header">Physical Properties</div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label">Color</label>
+                                <input type="text" class="form-control" name="color" value="{{ item.color if item else '' }}">
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label">Unit of Measure</label>
                                 <select class="form-select" name="unit_of_measure">
                                     <option value="parts" {% if not item or item.unit_of_measure == 'parts' %}selected{% endif %}>Parts</option>
@@ -80,29 +85,36 @@
                                     <option value="each" {% if item and item.unit_of_measure == 'each' %}selected{% endif %}>Each</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                        </div>
+                    </div>
+                </div>
+
+                {% if mode == 'advanced' or item %}
+                <!-- Physical Properties (Advanced only) -->
+                <div class="card mb-3">
+                    <div class="card-header">Physical Properties</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
                                 <label class="form-label">Weight (kg)</label>
                                 <input type="number" class="form-control" name="weight_kg" step="0.001" value="{{ item.weight_kg if item and item.weight_kg else '' }}">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Color</label>
-                                <input type="text" class="form-control" name="color" value="{{ item.color if item else '' }}">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Length (mm)</label>
                                 <input type="number" class="form-control" name="length_mm" step="0.1" value="{{ item.length_mm if item and item.length_mm else '' }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Width (mm)</label>
                                 <input type="number" class="form-control" name="width_mm" step="0.1" value="{{ item.width_mm if item and item.width_mm else '' }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Height (mm)</label>
                                 <input type="number" class="form-control" name="height_mm" step="0.1" value="{{ item.height_mm if item and item.height_mm else '' }}">
                             </div>
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Stock Settings -->
                 <div class="card mb-3">
@@ -118,9 +130,10 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            {% if mode == 'advanced' or item %}
                             <div class="col-12">
                                 <hr>
-                                <small class="text-muted">Leave these blank if you don't need low stock alerts for this item</small>
+                                <small class="text-muted">Leave these blank if you don't need low stock alerts</small>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Minimum Stock Level</label>
@@ -134,12 +147,14 @@
                                 <label class="form-label">Reorder Quantity</label>
                                 <input type="number" class="form-control" name="reorder_quantity" step="1" min="0" value="{{ item.reorder_quantity if item and item.reorder_quantity else '' }}" placeholder="Optional">
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <!-- Production & Moulding (for finished goods) -->
-                <div class="card mb-3" id="productionCard">
+                {% if mode == 'advanced' or item %}
+                <!-- Production & Moulding -->
+                <div class="card mb-3">
                     <div class="card-header bg-info bg-opacity-10">
                         <i class="bi bi-gear me-2"></i>Production & Moulding
                     </div>
@@ -166,11 +181,11 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Part Weight (g)</label>
-                                <input type="number" class="form-control" name="part_weight_grams" step="0.01" value="{{ item.part_weight_grams if item and item.part_weight_grams else '' }}" placeholder="Finished part weight">
+                                <input type="number" class="form-control" name="part_weight_grams" step="0.01" value="{{ item.part_weight_grams if item and item.part_weight_grams else '' }}">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Runner Weight (g)</label>
-                                <input type="number" class="form-control" name="runner_weight_grams" step="0.01" value="{{ item.runner_weight_grams if item and item.runner_weight_grams else '' }}" placeholder="0 if hot runner">
+                                <input type="number" class="form-control" name="runner_weight_grams" step="0.01" value="{{ item.runner_weight_grams if item and item.runner_weight_grams else '' }}">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Setup Time (hrs)</label>
@@ -181,76 +196,65 @@
                 </div>
 
                 <!-- Material & Costing -->
-                <div class="card mb-3" id="materialCard">
+                <div class="card mb-3">
                     <div class="card-header bg-success bg-opacity-10">
                         <i class="bi bi-currency-pound me-2"></i>Material & Costing
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Material Type</label>
+                                <select class="form-select" name="material_type">
+                                    <option value="">Select...</option>
+                                    {% for mt in ['PP', 'ABS', 'PA6', 'PA66', 'POM', 'PC', 'HDPE', 'PET', 'LDPE', 'PS', 'TPE'] %}
+                                    <option value="{{ mt }}" {% if item and item.material_type == mt %}selected{% endif %}>{{ mt }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Grade</label>
+                                <input type="text" class="form-control" name="material_grade" value="{{ item.material_grade if item else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Material Cost (&pound;/kg)</label>
+                                <input type="number" class="form-control" name="material_cost_per_kg" step="0.01" value="{{ item.material_cost_per_kg if item and item.material_cost_per_kg else '' }}">
+                            </div>
                             <div class="col-md-6">
-                                <label class="form-label">Material</label>
-                                <select class="form-select" name="linked_material_id" id="linked_material_id" onchange="updateMaterialCost()">
-                                    <option value="" data-cost="" data-type="">Select material...</option>
+                                <label class="form-label">Linked Material</label>
+                                <select class="form-select" name="material_id">
+                                    <option value="">None</option>
                                     {% for mat in materials %}
-                                    <option value="{{ mat.id }}"
-                                            data-cost="{{ mat.cost_per_kg }}"
-                                            data-type="{{ mat.material_type }}"
-                                            {% if item and item.linked_material_id == mat.id %}selected{% endif %}>
+                                    <option value="{{ mat.id }}" {% if item and item.material_id == mat.id %}selected{% endif %}>
                                         {{ mat.code }} - {{ mat.name }} (&pound;{{ "%.2f"|format(mat.cost_per_kg) }}/kg)
                                     </option>
                                     {% endfor %}
                                 </select>
-                                <small class="text-muted">
-                                    <a href="{{ url_for('materials.material_list') }}" target="_blank">Manage materials</a>
-                                </small>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Material Type</label>
-                                <input type="text" class="form-control" name="material_type" id="material_type"
-                                       value="{{ item.material_type if item else '' }}" readonly placeholder="Auto-filled">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Material Cost (&pound;/kg)</label>
-                                <input type="number" class="form-control" name="material_cost_per_kg" id="material_cost_per_kg"
-                                       step="0.01" value="{{ item.material_cost_per_kg if item and item.material_cost_per_kg else '' }}"
-                                       placeholder="Auto-filled">
-                                <small class="text-muted">Auto-filled from material</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Masterbatch</label>
-                                <select class="form-select" name="linked_masterbatch_id" id="linked_masterbatch_id" onchange="updateMasterbatchInfo()">
-                                    <option value="" data-cost="" data-ratio="">None</option>
+                                <select class="form-select" name="masterbatch_id">
+                                    <option value="">None</option>
                                     {% for mb in masterbatch_materials %}
-                                    <option value="{{ mb.id }}"
-                                            data-cost="{{ mb.cost_per_kg }}"
-                                            data-ratio="{{ mb.typical_loading_percent or 3 }}"
-                                            {% if item and item.linked_masterbatch_id == mb.id %}selected{% endif %}>
+                                    <option value="{{ mb.id }}" {% if item and item.masterbatch_id == mb.id %}selected{% endif %}>
                                         {{ mb.code }} - {{ mb.name }} (&pound;{{ "%.2f"|format(mb.cost_per_kg) }}/kg)
                                     </option>
                                     {% endfor %}
                                 </select>
-                                <small class="text-muted">
-                                    <a href="{{ url_for('materials.masterbatch_list') }}" target="_blank">Manage masterbatches</a>
-                                </small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Masterbatch Ratio (%)</label>
-                                <input type="number" class="form-control" name="masterbatch_ratio" id="masterbatch_ratio"
-                                       step="0.1" min="0" max="100"
-                                       value="{{ item.masterbatch_ratio if item and item.masterbatch_ratio else '' }}"
-                                       placeholder="e.g. 3">
+                                <input type="text" class="form-control" name="masterbatch_ratio" value="{{ item.masterbatch_ratio if item else '' }}" placeholder="e.g. 3%">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Regrind %</label>
                                 <input type="number" class="form-control" name="regrind_percent" step="1" min="0" max="100"
                                        value="{{ item.regrind_percent|int if item and item.regrind_percent else 0 }}">
                             </div>
-                            <div class="col-12"><hr class="my-2"></div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label class="form-label">Machine Rate (&pound;/hr)</label>
                                 <input type="number" class="form-control" name="target_machine_rate" step="1" value="{{ item.target_machine_rate if item and item.target_machine_rate else '' }}" placeholder="e.g. 45">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label class="form-label">Target Margin %</label>
                                 <input type="number" class="form-control" name="target_margin_percent" step="1" value="{{ item.target_margin_percent if item and item.target_margin_percent else 30 }}">
                             </div>
@@ -279,6 +283,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
             </div>
 
             <div class="col-lg-4">
@@ -297,22 +302,6 @@
                     </div>
                 </div>
 
-                <!-- Production Info hidden for V1 - uncomment when needed
-                <div class="card mb-3">
-                    <div class="card-header">Production</div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Cycle Time (seconds)</label>
-                            <input type="number" class="form-control" name="cycle_time_seconds" step="0.1" value="{{ item.cycle_time_seconds if item and item.cycle_time_seconds else '' }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Parts per Cycle</label>
-                            <input type="number" class="form-control" name="parts_per_cycle" value="{{ item.parts_per_cycle if item else 1 }}">
-                        </div>
-                    </div>
-                </div>
-                -->
-
                 <!-- Image -->
                 <div class="card mb-3">
                     <div class="card-header">Image</div>
@@ -323,15 +312,27 @@
                         <input type="file" class="form-control" name="image" accept="image/*">
                     </div>
                 </div>
+
+                {% if mode == 'simple' and not item %}
+                <div class="card mb-3 border-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-info-circle text-info fs-4 d-block mb-2"></i>
+                        <p class="small text-muted mb-0">
+                            Need to set mould details, material specs, or costing?
+                            <a href="{{ url_for('inventory.item_create', mode='advanced') }}">Switch to Advanced mode</a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
         <div class="d-flex justify-content-between mb-4">
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary btn-lg">
                     <i class="bi bi-check-lg me-1"></i> {{ 'Update' if item else 'Create' }} Item
                 </button>
-                <a href="{{ url_for('inventory.item_list') }}" class="btn btn-outline-secondary">Cancel</a>
+                <a href="{{ url_for('inventory.item_list') }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
             </div>
             {% if item and current_user.is_admin() %}
             <form method="POST" action="{{ url_for('inventory.item_delete', item_id=item.id) }}" class="d-inline"
@@ -345,32 +346,4 @@
         </div>
     </form>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function updateMaterialCost() {
-    const select = document.getElementById('linked_material_id');
-    const option = select.options[select.selectedIndex];
-    const cost = option.dataset.cost;
-    const type = option.dataset.type;
-
-    if (cost) {
-        document.getElementById('material_cost_per_kg').value = parseFloat(cost).toFixed(2);
-    }
-    if (type) {
-        document.getElementById('material_type').value = type;
-    }
-}
-
-function updateMasterbatchInfo() {
-    const select = document.getElementById('linked_masterbatch_id');
-    const option = select.options[select.selectedIndex];
-    const ratio = option.dataset.ratio;
-
-    if (ratio && !document.getElementById('masterbatch_ratio').value) {
-        document.getElementById('masterbatch_ratio').value = ratio;
-    }
-}
-</script>
 {% endblock %}

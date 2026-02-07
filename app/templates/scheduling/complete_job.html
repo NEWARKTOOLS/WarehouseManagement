@@ -108,25 +108,181 @@
                 </div>
             </div>
 
-            <!-- What's Next Preview -->
+            <!-- What's Next Section -->
             {% if next_job %}
-            <div class="card mt-4">
-                <div class="card-header bg-info text-white">
-                    <i class="bi bi-arrow-right-circle me-2"></i>Up Next
+            <div class="card mt-4 border-2 border-info">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <span class="fs-5 fw-bold"><i class="bi bi-arrow-right-circle me-2"></i>What's Next on {{ job.machine.name if job.machine else 'this machine' }}</span>
+                    {% if next_job.production_order and next_job.production_order.due_date %}
+                    <span class="badge bg-{{ 'danger' if next_job.is_urgent else 'warning' if next_job.is_warning else 'light text-dark' }}">
+                        Due {{ next_job.production_order.due_date.strftime('%d/%m') }}
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <!-- Next job details -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
-                            <strong>{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</strong>
-                            <br><small class="text-muted">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</small>
+                            <h5 class="mb-1">{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</h5>
+                            <p class="text-muted mb-0">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</p>
                         </div>
                         <div class="text-end">
-                            <strong>{{ next_job.production_order.quantity_required|int if next_job.production_order else 0 }}</strong> pcs
-                            {% if next_job.production_order and next_job.production_order.item %}
-                            <br><small>{{ next_job.production_order.item.color or '' }} {{ next_job.production_order.item.material_grade or '' }}</small>
-                            {% endif %}
+                            <div class="fs-4 fw-bold">{{ next_job.production_order.quantity_required|int if next_job.production_order else 0 }}</div>
+                            <small class="text-muted">parts required</small>
                         </div>
                     </div>
+
+                    {% if next_job.production_order and next_job.production_order.item %}
+                    <div class="row g-2 mb-3">
+                        {% if next_job.production_order.item.color %}
+                        <div class="col-auto">
+                            <span class="badge bg-light text-dark border"><i class="bi bi-palette me-1"></i>{{ next_job.production_order.item.color }}</span>
+                        </div>
+                        {% endif %}
+                        {% if next_job.production_order.item.material_grade %}
+                        <div class="col-auto">
+                            <span class="badge bg-light text-dark border"><i class="bi bi-droplet me-1"></i>{{ next_job.production_order.item.material_grade }}</span>
+                        </div>
+                        {% endif %}
+                        {% if next_job.production_order.mould %}
+                        <div class="col-auto">
+                            <span class="badge bg-light text-dark border"><i class="bi bi-tools me-1"></i>{{ next_job.production_order.mould.mould_number }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Changeover Requirements -->
+                    {% if changeover_info %}
+                        {% if changeover_info.mould_change or changeover_info.material_change or changeover_info.color_change %}
+                        <hr>
+                        <h6 class="text-uppercase text-muted mb-3"><i class="bi bi-exclamation-triangle me-1"></i>Changeover Required</h6>
+
+                        {% if changeover_info.estimated_changeover_minutes > 0 %}
+                        <div class="alert alert-secondary py-2 mb-3">
+                            <i class="bi bi-clock me-1"></i>
+                            <strong>Estimated changeover time:</strong> ~{{ changeover_info.estimated_changeover_minutes }} minutes
+                        </div>
+                        {% endif %}
+
+                        <!-- Mould Change Warning -->
+                        {% if changeover_info.mould_change %}
+                        <div class="alert alert-danger d-flex align-items-start mb-3">
+                            <i class="bi bi-exclamation-octagon-fill fs-4 me-3 mt-1"></i>
+                            <div>
+                                <strong class="d-block mb-1">Mould Change Required</strong>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="badge bg-secondary fs-6">{{ changeover_info.current_mould.mould_number if changeover_info.current_mould else '?' }}</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                    <span class="badge bg-danger fs-6">{{ changeover_info.next_mould.mould_number if changeover_info.next_mould else '?' }}</span>
+                                </div>
+                                {% if changeover_info.next_mould and changeover_info.next_mould.storage_location %}
+                                <small class="d-block mt-2 text-muted">
+                                    <i class="bi bi-geo-alt me-1"></i>Mould location: <strong>{{ changeover_info.next_mould.storage_location }}</strong>
+                                </small>
+                                {% endif %}
+                                {% if changeover_info.next_mould and changeover_info.next_mould.tonnage_required %}
+                                <small class="d-block text-muted">
+                                    <i class="bi bi-speedometer me-1"></i>Requires: <strong>{{ changeover_info.next_mould.tonnage_required }}T</strong>
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Material Change -->
+                        {% if changeover_info.material_change %}
+                        <div class="alert alert-warning d-flex align-items-start mb-3">
+                            <i class="bi bi-droplet-fill fs-4 me-3 mt-1"></i>
+                            <div>
+                                <strong class="d-block mb-1">Material Change - Purge Required</strong>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="badge bg-secondary">{{ changeover_info.current_material or '?' }}</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                    <span class="badge bg-warning text-dark">{{ changeover_info.next_material or '?' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Color Change -->
+                        {% if changeover_info.color_change %}
+                        <div class="alert alert-info d-flex align-items-start mb-3">
+                            <i class="bi bi-palette-fill fs-4 me-3 mt-1"></i>
+                            <div>
+                                <strong class="d-block mb-1">Color Change</strong>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="badge bg-secondary">{{ changeover_info.current_color or '?' }}</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                    <span class="badge bg-info">{{ changeover_info.next_color or '?' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Changeover Checklist -->
+                        <div class="card bg-light border-0 mt-3">
+                            <div class="card-body py-3">
+                                <h6 class="mb-3"><i class="bi bi-list-check me-1"></i>Changeover Checklist</h6>
+                                {% if changeover_info.mould_change %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_mould_remove">
+                                    <label class="form-check-label" for="check_mould_remove">Remove current mould ({{ changeover_info.current_mould.mould_number if changeover_info.current_mould else '?' }})</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_mould_install">
+                                    <label class="form-check-label" for="check_mould_install">Install new mould ({{ changeover_info.next_mould.mould_number if changeover_info.next_mould else '?' }})</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_mould_connections">
+                                    <label class="form-check-label" for="check_mould_connections">Connect water/hydraulic lines</label>
+                                </div>
+                                {% endif %}
+                                {% if changeover_info.material_change %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_purge">
+                                    <label class="form-check-label" for="check_purge">Purge barrel of old material</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_load_material">
+                                    <label class="form-check-label" for="check_load_material">Load new material ({{ changeover_info.next_material or '?' }})</label>
+                                </div>
+                                {% endif %}
+                                {% if changeover_info.color_change %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_color_purge">
+                                    <label class="form-check-label" for="check_color_purge">Purge previous color</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_color_load">
+                                    <label class="form-check-label" for="check_color_load">Load new color/masterbatch ({{ changeover_info.next_color or '?' }})</label>
+                                </div>
+                                {% endif %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input changeover-check" type="checkbox" id="check_first_shot">
+                                    <label class="form-check-label" for="check_first_shot">First shot quality check</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% else %}
+                        <!-- No changeover needed -->
+                        <div class="alert alert-success mb-0 mt-2">
+                            <i class="bi bi-check-circle me-2"></i><strong>No changeover required</strong> - Same mould, material, and color.
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <!-- No next job -->
+            <div class="card mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-calendar-x me-2"></i>What's Next
+                </div>
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-check-circle fs-1 text-muted d-block mb-2"></i>
+                    <p class="text-muted mb-0">No further jobs scheduled on this machine.</p>
                 </div>
             </div>
             {% endif %}

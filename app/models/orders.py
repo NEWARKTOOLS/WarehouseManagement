@@ -35,6 +35,9 @@ class Customer(db.Model):
     tax_number = db.Column(db.String(50))  # VAT number
     special_requirements = db.Column(db.Text)
 
+    # Logo (stored as filename in static/img/customers/)
+    logo_filename = db.Column(db.String(200))
+
     # Flags
     is_jit = db.Column(db.Boolean, default=False)  # Just-in-time customer
     is_active = db.Column(db.Boolean, default=True)

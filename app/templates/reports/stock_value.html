@@ -2,17 +2,55 @@
 
 {% block title %}Stock Valuation Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar, .mobile-header, .mobile-bottom-nav, .offcanvas, .no-print { display: none !important; }
+        .main-content { margin-left: 0 !important; padding: 0 !important; }
+        .print-header { display: block !important; }
+        body { font-size: 12px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; break-inside: avoid; }
+        .page-header { padding: 0 !important; margin-bottom: 0.5rem !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+        .chart-container { break-inside: avoid; }
+        canvas { max-height: 300px !important; }
+    }
+    .print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
+    <!-- Print Header -->
+    <div class="print-header mb-3">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+            <div>
+                <h4 class="mb-0">Stock Valuation Report</h4>
+                <small class="text-muted">Generated: {{ now().strftime('%d/%m/%Y %H:%M') if now is defined else '' }}</small>
+            </div>
+            <div class="text-end">
+                <strong>Warehouse Management System</strong>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb" class="no-print">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
                     <li class="breadcrumb-item active">Stock Value</li>
                 </ol>
             </nav>
             <h1><i class="bi bi-currency-pound me-2"></i>Stock Valuation</h1>
+        </div>
+        <div class="no-print">
+            <button onclick="exportTableToCSV('stock_valuation.csv')" class="btn btn-outline-success btn-sm me-1">
+                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Print Report
+            </button>
         </div>
     </div>
 
@@ -53,6 +91,22 @@
         </div>
     </div>
 
+    <!-- Value by Category Chart -->
+    {% if item_values %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-pie-chart me-1"></i>Value by Category
+        </div>
+        <div class="card-body chart-container">
+            <div class="row">
+                <div class="col-12 col-md-6 mx-auto">
+                    <canvas id="valueChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Item Values -->
     <div class="card">
         <div class="card-header">
@@ -60,7 +114,7 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0" id="reportTable">
                     <thead>
                         <tr>
                             <th>SKU</th>
@@ -107,4 +161,115 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function exportTableToCSV(filename) {
+    const table = document.getElementById('reportTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    rows.forEach(function(row) {
+        const cols = row.querySelectorAll('th, td');
+        let rowData = [];
+        cols.forEach(function(col) {
+            let text = col.innerText.replace(/"/g, '""').replace(/\n/g, ' ').trim();
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    const csvContent = csv.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// Value by Category Doughnut Chart
+{% if item_values %}
+(function() {
+    // Aggregate values by category
+    const categoryMap = {};
+    {% for data in item_values %}
+    {
+        const cat = {{ (data.item.category.name if data.item.category else 'Uncategorised')|tojson }};
+        const val = {{ data.value }};
+        if (!categoryMap[cat]) categoryMap[cat] = 0;
+        categoryMap[cat] += val;
+    }
+    {% endfor %}
+
+    // Sort categories by value and take top segments, group the rest as "Other"
+    const entries = Object.entries(categoryMap).sort(function(a, b) { return b[1] - a[1]; });
+    const maxSegments = 8;
+    let labels = [];
+    let values = [];
+    let otherTotal = 0;
+
+    entries.forEach(function(entry, i) {
+        if (i < maxSegments) {
+            labels.push(entry[0]);
+            values.push(entry[1]);
+        } else {
+            otherTotal += entry[1];
+        }
+    });
+
+    if (otherTotal > 0) {
+        labels.push('Other');
+        values.push(otherTotal);
+    }
+
+    const colors = [
+        'rgba(13, 110, 253, 0.8)',
+        'rgba(25, 135, 84, 0.8)',
+        'rgba(255, 193, 7, 0.8)',
+        'rgba(220, 53, 69, 0.8)',
+        'rgba(13, 202, 240, 0.8)',
+        'rgba(111, 66, 193, 0.8)',
+        'rgba(253, 126, 20, 0.8)',
+        'rgba(108, 117, 125, 0.8)',
+        'rgba(173, 181, 189, 0.8)'
+    ];
+
+    const ctx = document.getElementById('valueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { padding: 12, usePointStyle: true }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed;
+                            const total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            const pct = ((val / total) * 100).toFixed(1);
+                            return context.label + ': \u00A3' + val.toLocaleString('en-GB', {minimumFractionDigits: 2}) + ' (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
 {% endblock %}

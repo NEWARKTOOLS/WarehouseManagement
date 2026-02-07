@@ -2,11 +2,40 @@
 
 {% block title %}Stock On Hand Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar, .mobile-header, .mobile-bottom-nav, .offcanvas, .no-print { display: none !important; }
+        .main-content { margin-left: 0 !important; padding: 0 !important; }
+        .print-header { display: block !important; }
+        body { font-size: 12px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; }
+        .page-header { padding: 0 !important; margin-bottom: 0.5rem !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+        .badge { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+    }
+    .print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
+    <!-- Print Header -->
+    <div class="print-header mb-3">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+            <div>
+                <h4 class="mb-0">Stock On Hand Report</h4>
+                <small class="text-muted">Generated: {{ now().strftime('%d/%m/%Y %H:%M') if now is defined else '' }}</small>
+            </div>
+            <div class="text-end">
+                <strong>Warehouse Management System</strong>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb" class="no-print">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
                     <li class="breadcrumb-item active">Stock On Hand</li>
@@ -14,10 +43,18 @@
             </nav>
             <h1><i class="bi bi-box-seam me-2"></i>Stock On Hand</h1>
         </div>
+        <div class="no-print">
+            <button onclick="exportTableToCSV('stock_on_hand.csv')" class="btn btn-outline-success btn-sm me-1">
+                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Print Report
+            </button>
+        </div>
     </div>
 
     <!-- Filters -->
-    <div class="card mb-3">
+    <div class="card mb-3 no-print">
         <div class="card-body">
             <form method="GET" class="row g-2">
                 <div class="col-6 col-md-3">
@@ -53,7 +90,7 @@
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0" id="reportTable">
                     <thead>
                         <tr>
                             <th>SKU</th>
@@ -92,4 +129,31 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportTableToCSV(filename) {
+    const table = document.getElementById('reportTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    rows.forEach(function(row) {
+        const cols = row.querySelectorAll('th, td');
+        let rowData = [];
+        cols.forEach(function(col) {
+            let text = col.innerText.replace(/"/g, '""').replace(/\n/g, ' ').trim();
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    const csvContent = csv.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+</script>
 {% endblock %}

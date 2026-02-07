@@ -3,6 +3,31 @@
 {% block title %}Sorting Queue{% endblock %}
 {% block mobile_title %}Sorting{% endblock %}
 
+{% block extra_css %}
+<style>
+    .urgency-urgent {
+        border-left: 4px solid #dc3545 !important;
+    }
+    .urgency-warning {
+        border-left: 4px solid #ffc107 !important;
+    }
+    .urgency-normal {
+        border-left: 4px solid transparent !important;
+    }
+    .urgency-header {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    .next-step-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
     <div class="page-header">
@@ -10,9 +35,16 @@
             <h1><i class="bi bi-inbox me-2"></i>Sorting Queue</h1>
             <p class="text-muted mb-0">Items awaiting counting, degating, or assembly</p>
         </div>
-        <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-calendar3"></i> Schedule
-        </a>
+        <div class="d-flex gap-2">
+            {% if urgent_count > 0 %}
+            <span class="badge bg-danger fs-6 d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ urgent_count }} urgent
+            </span>
+            {% endif %}
+            <a href="{{ url_for('scheduling.schedule_index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-calendar3"></i> Schedule
+            </a>
+        </div>
     </div>
 
     <!-- Filter Tabs -->
@@ -57,21 +89,90 @@
         </div>
     </div>
 
-    <!-- Queue Items -->
-    {% if items %}
+    <!-- Queue Items grouped by urgency -->
+    {% if enriched_items %}
+
+    {% set ns = namespace(current_group='', shown_urgent=false, shown_warning=false, shown_normal=false) %}
+
+    {% for ei in enriched_items %}
+    {% set item = ei.item %}
+
+    {# Group headers #}
+    {% if ei.urgency == 'urgent' and not ns.shown_urgent %}
+        {% set ns.shown_urgent = true %}
+        <div class="urgency-header bg-danger bg-opacity-10 text-danger d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Urgent - Blocking Order Dispatch
+        </div>
+    {% elif ei.urgency == 'warning' and not ns.shown_warning %}
+        {% set ns.shown_warning = true %}
+        {% if ns.shown_urgent %}<hr class="my-3">{% endif %}
+        <div class="urgency-header bg-warning bg-opacity-10 text-dark d-flex align-items-center">
+            <i class="bi bi-clock-history me-2"></i>
+            Attention - Orders Due Soon
+        </div>
+    {% elif ei.urgency == 'normal' and not ns.shown_normal %}
+        {% set ns.shown_normal = true %}
+        {% if ns.shown_urgent or ns.shown_warning %}<hr class="my-3">{% endif %}
+        <div class="urgency-header bg-light text-muted d-flex align-items-center">
+            <i class="bi bi-inbox me-2"></i>
+            Standard Queue
+        </div>
+    {% endif %}
+
+    {# Render cards inline in a flex row using CSS grid approach within groups #}
+    {% if loop.first or (ei.urgency != enriched_items[loop.index0 - 1].urgency if loop.index0 > 0 else true) %}
     <div class="row">
-        {% for item in items %}
+    {% endif %}
+
         <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card h-100">
+            <div class="card h-100 urgency-{{ ei.urgency }}">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="badge bg-{{ 'warning' if item.sorting_type == 'counting' else 'info' if item.sorting_type == 'degating' else 'secondary' }}">
-                        {{ item.sorting_type|title }}
-                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if ei.urgency == 'urgent' %}
+                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill"></i> URGENT</span>
+                        {% elif ei.urgency == 'warning' %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock-history"></i> Due Soon</span>
+                        {% endif %}
+                        <span class="badge bg-{{ 'warning' if item.sorting_type == 'counting' else 'info' if item.sorting_type == 'degating' else 'secondary' }}">
+                            {{ item.sorting_type|title }}
+                        </span>
+                    </div>
                     <small class="text-muted">{{ item.created_at.strftime('%d/%m %H:%M') }}</small>
                 </div>
                 <div class="card-body">
-                    <h5 class="card-title">{{ item.item.sku if item.item else 'N/A' }}</h5>
-                    <p class="card-text text-muted">{{ item.item.name if item.item else '' }}</p>
+                    <h5 class="card-title mb-1">{{ item.item.sku if item.item else 'N/A' }}</h5>
+                    <p class="card-text text-muted mb-2">{{ item.item.name if item.item else '' }}</p>
+
+                    <!-- Customer / Sales Order Info -->
+                    {% if ei.customer_name or ei.sales_order_number %}
+                    <div class="mb-2">
+                        {% if ei.customer_name %}
+                        <small class="d-block">
+                            <i class="bi bi-person-fill text-primary me-1"></i>
+                            <strong>{{ ei.customer_name }}</strong>
+                        </small>
+                        {% endif %}
+                        {% if ei.sales_order_number %}
+                        <small class="d-block text-muted">
+                            <i class="bi bi-cart me-1"></i>{{ ei.sales_order_number }}
+                            {% if ei.sales_order_required_date %}
+                            <span class="ms-1 badge bg-{{ 'danger' if ei.urgency == 'urgent' else 'warning text-dark' if ei.urgency == 'warning' else 'light text-dark border' }} ms-1">
+                                Due {{ ei.sales_order_required_date.strftime('%d/%m') }}
+                            </span>
+                            {% endif %}
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Blocking order warning -->
+                    {% if ei.is_blocking_order %}
+                    <div class="alert alert-danger py-1 px-2 mb-2 small">
+                        <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                        <strong>Blocking order dispatch!</strong> Process urgently.
+                    </div>
+                    {% endif %}
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
@@ -90,6 +191,15 @@
                         {% endif %}
                     </div>
 
+                    <!-- Next Processing Step -->
+                    {% if ei.next_processing_step %}
+                    <div class="mb-2">
+                        <span class="next-step-badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                            <i class="bi bi-arrow-right-circle me-1"></i>{{ ei.next_processing_step }}
+                        </span>
+                    </div>
+                    {% endif %}
+
                     {% if item.production_order %}
                     <small class="text-muted d-block mb-2">
                         <i class="bi bi-file-text"></i> {{ item.production_order.order_number }}
@@ -104,7 +214,7 @@
                 </div>
                 <div class="card-footer bg-transparent">
                     {% if item.status == 'pending' %}
-                    <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#completeModal{{ item.id }}">
+                    <button type="button" class="btn btn-{{ 'danger' if ei.urgency == 'urgent' else 'success' }} w-100" data-bs-toggle="modal" data-bs-target="#completeModal{{ item.id }}">
                         <i class="bi bi-check-lg me-2"></i>Complete & Add to Stock
                     </button>
                     {% elif item.status == 'completed' %}
@@ -127,6 +237,14 @@
                     <form method="POST" action="{{ url_for('scheduling.complete_sorting', sorting_id=item.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="modal-body">
+                            {% if ei.is_blocking_order %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                                <strong>This item is blocking order dispatch</strong>
+                                {% if ei.customer_name %} for {{ ei.customer_name }}{% endif %}{% if ei.sales_order_number %} ({{ ei.sales_order_number }}){% endif %}.
+                                Please process urgently.
+                            </div>
+                            {% endif %}
                             <div class="mb-3">
                                 <label class="form-label">Actual Quantity (Good Parts)</label>
                                 <input type="number" class="form-control form-control-lg text-center" name="actual_quantity"
@@ -154,8 +272,14 @@
                 </div>
             </div>
         </div>
-        {% endfor %}
+
+    {# Close row div at group boundary or end of list #}
+    {% if loop.last or (enriched_items[loop.index0 + 1].urgency != ei.urgency if loop.index0 + 1 < enriched_items|length else true) %}
     </div>
+    {% endif %}
+
+    {% endfor %}
+
     {% else %}
     <div class="text-center py-5">
         <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>

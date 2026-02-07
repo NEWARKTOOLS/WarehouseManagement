@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Job Completed{% endblock %}
+{% block mobile_title %}Job Done{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-banner {
+        background: linear-gradient(135deg, #198754 0%, #157347 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    .success-banner .check-icon {
+        font-size: 3.5rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    .action-btn {
+        padding: 1.25rem 1.5rem;
+        font-size: 1.15rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        min-height: 70px;
+        font-weight: 600;
+    }
+    .action-btn i {
+        font-size: 1.5rem;
+    }
+    .changeover-banner {
+        border-left: 5px solid;
+        border-radius: 0.5rem;
+    }
+    .changeover-banner.mould-change {
+        border-color: #dc3545;
+        background: #fff5f5;
+    }
+    .changeover-banner.material-change {
+        border-color: #ffc107;
+        background: #fffdf0;
+    }
+    .changeover-banner.color-change {
+        border-color: #0dcaf0;
+        background: #f0fcff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+
+            <!-- Success Banner -->
+            <div class="success-banner mt-3">
+                <i class="bi bi-check-circle-fill check-icon"></i>
+                <h2 class="mb-1">Job Completed Successfully!</h2>
+                <p class="mb-0 opacity-75">
+                    {{ job.production_order.item.sku if job.production_order and job.production_order.item else 'N/A' }}
+                    on {{ job.machine.name if job.machine else 'Unknown' }}
+                </p>
+                {% if job.output_destination %}
+                <div class="mt-2">
+                    <span class="badge bg-light text-dark fs-6">
+                        {% if job.output_destination == 'awaiting_sorting' %}
+                            <i class="bi bi-inbox me-1"></i>Parts sent to Sorting Queue
+                        {% elif job.output_destination == 'awaiting_degating' %}
+                            <i class="bi bi-scissors me-1"></i>Parts sent to Degating Queue
+                        {% elif job.output_destination == 'awaiting_assembly' %}
+                            <i class="bi bi-tools me-1"></i>Parts sent to Assembly Queue
+                        {% elif job.output_destination.startswith('location_') %}
+                            <i class="bi bi-geo-alt me-1"></i>Parts added to Stock
+                        {% else %}
+                            <i class="bi bi-arrow-right me-1"></i>{{ job.output_destination }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- What's Next on This Machine -->
+            {% if next_job %}
+            <div class="card mb-4 border-2 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold"><i class="bi bi-arrow-right-circle me-2"></i>Next Up on {{ job.machine.name if job.machine else 'this machine' }}</span>
+                        {% if next_job.production_order and next_job.production_order.due_date %}
+                        <span class="badge bg-{{ 'danger' if next_job.is_urgent else 'warning text-dark' if next_job.is_warning else 'light text-dark' }}">
+                            Due {{ next_job.production_order.due_date.strftime('%d/%m/%Y') }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Next job details -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 class="mb-1">{{ next_job.production_order.item.sku if next_job.production_order and next_job.production_order.item else 'N/A' }}</h4>
+                            <p class="text-muted mb-1">{{ next_job.production_order.item.name if next_job.production_order and next_job.production_order.item else '' }}</p>
+                            {% if next_job.production_order and next_job.production_order.sales_order and next_job.production_order.sales_order.customer %}
+                            <small class="text-primary">
+                                <i class="bi bi-person me-1"></i>{{ next_job.production_order.sales_order.customer.name }}
+                                ({{ next_job.production_order.sales_order.order_number }})
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            <div class="fs-3 fw-bold text-primary">{{ next_job.production_order.quantity_required|int if next_job.production_order else 0 }}</div>
+                            <small class="text-muted">parts required</small>
+                        </div>
+                    </div>
+
+                    <!-- Part details badges -->
+                    {% if next_job.production_order and next_job.production_order.item %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if next_job.production_order.item.color %}
+                        <span class="badge bg-light text-dark border px-3 py-2"><i class="bi bi-palette me-1"></i>{{ next_job.production_order.item.color }}</span>
+                        {% endif %}
+                        {% if next_job.production_order.item.material_grade %}
+                        <span class="badge bg-light text-dark border px-3 py-2"><i class="bi bi-droplet me-1"></i>{{ next_job.production_order.item.material_grade }}</span>
+                        {% endif %}
+                        {% if next_job.production_order.mould %}
+                        <span class="badge bg-light text-dark border px-3 py-2"><i class="bi bi-tools me-1"></i>{{ next_job.production_order.mould.mould_number }}</span>
+                        {% endif %}
+                        {% if next_job.estimated_duration_hours %}
+                        <span class="badge bg-light text-dark border px-3 py-2"><i class="bi bi-clock me-1"></i>~{{ "%.1f"|format(next_job.estimated_duration_hours) }}h run</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Changeover Requirements -->
+                    {% if changeover_info and (changeover_info.mould_change or changeover_info.material_change or changeover_info.color_change) %}
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Changeover Required</h5>
+                        {% if changeover_info.estimated_changeover_minutes > 0 %}
+                        <span class="badge bg-secondary fs-6 px-3 py-2">
+                            <i class="bi bi-clock me-1"></i>~{{ changeover_info.estimated_changeover_minutes }} min
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Mould Change - PROMINENT -->
+                    {% if changeover_info.mould_change %}
+                    <div class="changeover-banner mould-change p-3 mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-octagon-fill text-danger fs-3 me-3"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold text-danger mb-2">MOULD CHANGE REQUIRED</h6>
+                                <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Current</small>
+                                        <span class="badge bg-secondary fs-6 px-3 py-2">{{ changeover_info.current_mould.mould_number if changeover_info.current_mould else '?' }}</span>
+                                    </div>
+                                    <i class="bi bi-arrow-right-circle-fill text-danger fs-4 mx-2"></i>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Switch to</small>
+                                        <span class="badge bg-danger fs-6 px-3 py-2">{{ changeover_info.next_mould.mould_number if changeover_info.next_mould else '?' }}</span>
+                                    </div>
+                                </div>
+                                {% if changeover_info.next_mould %}
+                                <div class="mt-2">
+                                    {% if changeover_info.next_mould.storage_location %}
+                                    <span class="badge bg-white text-dark border me-2">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>Location: {{ changeover_info.next_mould.storage_location }}
+                                    </span>
+                                    {% endif %}
+                                    {% if changeover_info.next_mould.tonnage_required %}
+                                    <span class="badge bg-white text-dark border me-2">
+                                        <i class="bi bi-speedometer me-1"></i>{{ changeover_info.next_mould.tonnage_required }}T required
+                                    </span>
+                                    {% endif %}
+                                    {% if changeover_info.next_mould.num_cavities %}
+                                    <span class="badge bg-white text-dark border">
+                                        <i class="bi bi-grid-3x3-gap me-1"></i>{{ changeover_info.next_mould.num_cavities }} cavities
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Material Change -->
+                    {% if changeover_info.material_change %}
+                    <div class="changeover-banner material-change p-3 mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-droplet-fill text-warning fs-3 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold mb-2">Material Change - Purge Required</h6>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Current</small>
+                                        <span class="badge bg-secondary px-3 py-2">{{ changeover_info.current_material or '?' }}</span>
+                                    </div>
+                                    <i class="bi bi-arrow-right-circle-fill text-warning fs-4 mx-2"></i>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Load</small>
+                                        <span class="badge bg-warning text-dark px-3 py-2">{{ changeover_info.next_material or '?' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Color Change -->
+                    {% if changeover_info.color_change %}
+                    <div class="changeover-banner color-change p-3 mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-palette-fill text-info fs-3 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold mb-2">Color Change</h6>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Current</small>
+                                        <span class="badge bg-secondary px-3 py-2">{{ changeover_info.current_color or '?' }}</span>
+                                    </div>
+                                    <i class="bi bi-arrow-right-circle-fill text-info fs-4 mx-2"></i>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block">Switch to</small>
+                                        <span class="badge bg-info px-3 py-2">{{ changeover_info.next_color or '?' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% elif changeover_info %}
+                    <!-- No changeover needed -->
+                    <div class="alert alert-success mt-2">
+                        <i class="bi bi-check-circle-fill me-2"></i><strong>No changeover required</strong> - Same mould, material, and color. Ready to run!
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <!-- No next job -->
+            <div class="card mb-4">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-calendar-check fs-1 text-muted d-block mb-2"></i>
+                    <h5 class="text-muted">No More Jobs Scheduled</h5>
+                    <p class="text-muted mb-0">There are no further jobs scheduled on {{ job.machine.name if job.machine else 'this machine' }}.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-3 mb-4">
+                {% if next_job %}
+                <a href="{{ url_for('scheduling.start_job', job_id=next_job.id) }}"
+                   class="action-btn btn btn-primary"
+                   onclick="event.preventDefault(); document.getElementById('start-next-form').submit();">
+                    <i class="bi bi-play-circle-fill"></i>
+                    <span>Start Next Job</span>
+                </a>
+                <form id="start-next-form" action="{{ url_for('scheduling.start_job', job_id=next_job.id) }}" method="POST" style="display:none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                </form>
+                {% endif %}
+
+                <a href="{{ url_for('scheduling.sorting_queue') }}" class="action-btn btn btn-warning">
+                    <i class="bi bi-inbox-fill"></i>
+                    <span>View Sorting Queue</span>
+                    {% if sorting_count > 0 %}
+                    <span class="badge bg-dark">{{ sorting_count }}</span>
+                    {% endif %}
+                </a>
+
+                <a href="{{ url_for('scheduling.machine_schedule', machine_id=job.machine_id) }}" class="action-btn btn btn-outline-secondary">
+                    <i class="bi bi-cpu"></i>
+                    <span>Back to Machine Schedule</span>
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,17 +2,53 @@
 
 {% block title %}Low Stock Report{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar, .mobile-header, .mobile-bottom-nav, .offcanvas, .no-print { display: none !important; }
+        .main-content { margin-left: 0 !important; padding: 0 !important; }
+        .print-header { display: block !important; }
+        body { font-size: 12px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; }
+        .page-header { padding: 0 !important; margin-bottom: 0.5rem !important; }
+        a { color: #000 !important; text-decoration: none !important; }
+    }
+    .print-header { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 px-md-4">
+    <!-- Print Header -->
+    <div class="print-header mb-3">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+            <div>
+                <h4 class="mb-0">Low Stock Alert Report</h4>
+                <small class="text-muted">Generated: {{ now().strftime('%d/%m/%Y %H:%M') if now is defined else '' }}</small>
+            </div>
+            <div class="text-end">
+                <strong>Warehouse Management System</strong>
+            </div>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
+            <nav aria-label="breadcrumb" class="no-print">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="{{ url_for('reports.report_index') }}">Reports</a></li>
                     <li class="breadcrumb-item active">Low Stock</li>
                 </ol>
             </nav>
             <h1><i class="bi bi-exclamation-triangle text-warning me-2"></i>Low Stock Alert</h1>
+        </div>
+        <div class="no-print">
+            <button onclick="exportTableToCSV('low_stock.csv')" class="btn btn-outline-success btn-sm me-1">
+                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Print Report
+            </button>
         </div>
     </div>
 
@@ -23,7 +59,7 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0" id="reportTable">
                     <thead>
                         <tr>
                             <th>SKU</th>
@@ -32,7 +68,7 @@
                             <th class="text-end">Current Stock</th>
                             <th class="text-end">Reorder Level</th>
                             <th class="text-end">Shortfall</th>
-                            <th></th>
+                            <th class="no-print"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,7 +88,7 @@
                             <td class="text-end text-danger">
                                 {{ "{:,.0f}".format((item.reorder_level or 0) - item.total_stock) }}
                             </td>
-                            <td class="text-end">
+                            <td class="text-end no-print">
                                 <a href="{{ url_for('inventory.receive_stock', item_id=item.id) }}" class="btn btn-sm btn-success">
                                     <i class="bi bi-plus"></i> Receive
                                 </a>
@@ -71,4 +107,31 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportTableToCSV(filename) {
+    const table = document.getElementById('reportTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    rows.forEach(function(row) {
+        const cols = row.querySelectorAll('th:not(.no-print), td:not(.no-print)');
+        let rowData = [];
+        cols.forEach(function(col) {
+            let text = col.innerText.replace(/"/g, '""').replace(/\n/g, ' ').trim();
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    const csvContent = csv.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+</script>
 {% endblock %}

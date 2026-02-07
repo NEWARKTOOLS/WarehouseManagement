@@ -35,12 +35,20 @@
             <!-- Camera Scanner -->
             <div class="card mb-3">
                 <div class="card-body">
-                    <div class="scanner-container mb-3">
-                        <video id="scannerVideo" class="scanner-video" playsinline></video>
-                        <div class="scanner-overlay">
-                            <div class="scanner-frame"></div>
+                    <div class="scanner-container mb-3" style="position:relative; overflow:hidden; border-radius:8px; background:#000;">
+                        <video id="scannerVideo" class="scanner-video" playsinline autoplay muted style="width:100%; display:block;"></video>
+                        <canvas id="scannerCanvas" style="display:none;"></canvas>
+                        <div class="scanner-overlay" style="position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none;">
+                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:70%; height:40%; border:2px solid rgba(0,200,0,0.7); border-radius:8px;">
+                                <div style="position:absolute; top:-1px; left:-1px; width:20px; height:20px; border-top:3px solid #0f0; border-left:3px solid #0f0;"></div>
+                                <div style="position:absolute; top:-1px; right:-1px; width:20px; height:20px; border-top:3px solid #0f0; border-right:3px solid #0f0;"></div>
+                                <div style="position:absolute; bottom:-1px; left:-1px; width:20px; height:20px; border-bottom:3px solid #0f0; border-left:3px solid #0f0;"></div>
+                                <div style="position:absolute; bottom:-1px; right:-1px; width:20px; height:20px; border-bottom:3px solid #0f0; border-right:3px solid #0f0;"></div>
+                            </div>
                         </div>
                     </div>
+
+                    <div id="cameraStatus" class="alert alert-info small mb-3" style="display:none;"></div>
 
                     <div class="d-flex gap-2 mb-3">
                         <button id="startScan" class="btn btn-primary flex-grow-1">
@@ -53,7 +61,7 @@
 
                     <!-- Manual Entry -->
                     <div class="input-group">
-                        <input type="text" class="form-control" id="manualBarcode" placeholder="Or enter barcode/SKU manually">
+                        <input type="text" class="form-control" id="manualBarcode" placeholder="Or enter barcode/SKU manually" inputmode="text" autocomplete="off">
                         <button class="btn btn-outline-primary" type="button" id="manualSearch">
                             <i class="bi bi-search"></i>
                         </button>
@@ -69,16 +77,12 @@
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
-                <div class="card-body" id="resultContent">
-                    <!-- Result content will be inserted here -->
-                </div>
-                <div class="card-footer" id="resultActions">
-                    <!-- Action buttons will be inserted here -->
-                </div>
+                <div class="card-body" id="resultContent"></div>
+                <div class="card-footer" id="resultActions"></div>
             </div>
 
-            <!-- Quick Action Form (shown based on mode) -->
-            <div id="actionForm" class="card" style="display:none;">
+            <!-- Quick Action Form -->
+            <div id="actionForm" class="card mt-3" style="display:none;">
                 <div class="card-header" id="actionFormTitle">Action</div>
                 <div class="card-body">
                     <form id="quickActionForm">
@@ -125,14 +129,15 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- jsQR library for barcode scanning -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<!-- QuaggaJS for barcode scanning (supports 1D barcodes on iOS/iPad) -->
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('scannerVideo');
     const startBtn = document.getElementById('startScan');
     const stopBtn = document.getElementById('stopScan');
+    const statusEl = document.getElementById('cameraStatus');
     const manualInput = document.getElementById('manualBarcode');
     const manualSearchBtn = document.getElementById('manualSearch');
     const resultCard = document.getElementById('scanResult');
@@ -141,9 +146,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const actionForm = document.getElementById('actionForm');
     const clearResultBtn = document.getElementById('clearResult');
 
-    let scanner = null;
+    let scanning = false;
     let currentItem = null;
     let locations = [];
+    let lastScannedCode = '';
+    let lastScanTime = 0;
 
     // Load locations
     fetch('/locations/api/search?q=')
@@ -160,73 +167,145 @@ document.addEventListener('DOMContentLoaded', function() {
                     select.appendChild(option);
                 });
             });
-        });
+        })
+        .catch(() => {});
 
-    // Start scanner
+    function showStatus(msg, type) {
+        statusEl.className = `alert alert-${type} small mb-3`;
+        statusEl.textContent = msg;
+        statusEl.style.display = 'block';
+    }
+
+    function hideStatus() {
+        statusEl.style.display = 'none';
+    }
+
+    // Check camera availability
+    function checkCameraSupport() {
+        // Check for secure context (needed for camera on iOS)
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            showStatus('Camera requires HTTPS. Use manual barcode entry below, or access via HTTPS.', 'warning');
+            return false;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showStatus('Camera not available on this device/browser. Use manual barcode entry below.', 'warning');
+            return false;
+        }
+        return true;
+    }
+
+    // Start scanner using QuaggaJS
     startBtn.addEventListener('click', async function() {
+        if (!checkCameraSupport()) {
+            return;
+        }
+
+        hideStatus();
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Starting...';
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
+            // Use QuaggaJS which handles iOS camera properly
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: video.parentElement,
+                    constraints: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "upc_reader",
+                        "upc_e_reader",
+                        "i2of5_reader",
+                        "codabar_reader"
+                    ]
+                },
+                locate: true,
+                frequency: 10
+            }, function(err) {
+                if (err) {
+                    console.error('Quagga init error:', err);
+                    showStatus('Unable to access camera: ' + (err.message || err.name || 'Please check camera permissions in your device settings.'), 'danger');
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = '<i class="bi bi-camera"></i> Start Camera';
+                    return;
+                }
+
+                // Hide the original video element since Quagga creates its own
+                video.style.display = 'none';
+
+                Quagga.start();
+                scanning = true;
+
+                startBtn.style.display = 'none';
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="bi bi-camera"></i> Start Camera';
+                stopBtn.style.display = 'block';
             });
-            video.srcObject = stream;
-            await video.play();
 
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'block';
+            // Handle detected barcodes
+            Quagga.onDetected(function(result) {
+                const code = result.codeResult.code;
+                const now = Date.now();
 
-            // Start scanning loop
-            scanLoop();
+                // Debounce: ignore same code within 3 seconds
+                if (code === lastScannedCode && (now - lastScanTime) < 3000) {
+                    return;
+                }
+
+                lastScannedCode = code;
+                lastScanTime = now;
+
+                // Visual feedback
+                if (navigator.vibrate) navigator.vibrate(100);
+
+                processBarcode(code);
+            });
+
         } catch (err) {
-            alert('Unable to access camera: ' + err.message);
+            showStatus('Unable to access camera: ' + (err.message || 'Unknown error'), 'danger');
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="bi bi-camera"></i> Start Camera';
         }
     });
 
     // Stop scanner
     stopBtn.addEventListener('click', function() {
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-            video.srcObject = null;
+        if (scanning) {
+            Quagga.stop();
+            scanning = false;
         }
+        // Clean up Quagga's video elements
+        const quaggaVideo = video.parentElement.querySelector('video.drawingBuffer, video:not(#scannerVideo)');
+        if (quaggaVideo) quaggaVideo.remove();
+        const quaggaCanvas = video.parentElement.querySelectorAll('canvas.drawingBuffer');
+        quaggaCanvas.forEach(c => c.remove());
+
+        video.style.display = 'block';
         startBtn.style.display = 'block';
         stopBtn.style.display = 'none';
     });
 
-    // Scan loop
-    function scanLoop() {
-        if (!video.srcObject) return;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-        if (code) {
-            processBarcode(code.data);
-            // Pause briefly
-            setTimeout(scanLoop, 2000);
-        } else {
-            requestAnimationFrame(scanLoop);
-        }
-    }
-
     // Manual search
     manualSearchBtn.addEventListener('click', function() {
         const barcode = manualInput.value.trim();
-        if (barcode) {
-            processBarcode(barcode);
-        }
+        if (barcode) processBarcode(barcode);
     });
 
     manualInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
+            e.preventDefault();
             const barcode = this.value.trim();
-            if (barcode) {
-                processBarcode(barcode);
-            }
+            if (barcode) processBarcode(barcode);
         }
     });
 
@@ -247,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.error) {
-                showResult('error', `<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-2"></i>${data.error}: ${barcode}</div>`, []);
+                showResult('error', `<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-2"></i>${data.error}: ${barcode}</div>`, '');
                 return;
             }
 
@@ -259,11 +338,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
         } catch (err) {
-            showResult('error', `<div class="alert alert-danger mb-0">Error: ${err.message}</div>`, []);
+            showResult('error', `<div class="alert alert-danger mb-0">Error: ${err.message}</div>`, '');
         }
     }
 
-    // Show item result
     function showItemResult(item, mode) {
         let html = `
             <div class="d-flex align-items-start mb-3">
@@ -308,7 +386,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showResult('Item Found', html, actions);
     }
 
-    // Show location result
     function showLocationResult(location) {
         let html = `
             <h5 class="mb-1">${location.code}</h5>
@@ -328,7 +405,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showResult('Location', html, `<a href="/locations/${location.id}" class="btn btn-outline-primary btn-sm">View Details</a>`);
     }
 
-    // Show result card
     function showResult(title, content, actions) {
         document.getElementById('resultTitle').textContent = title;
         resultContent.innerHTML = content;
@@ -336,7 +412,6 @@ document.addEventListener('DOMContentLoaded', function() {
         resultCard.style.display = 'block';
     }
 
-    // Show action form
     function showActionForm(mode, item) {
         const titleEl = document.getElementById('actionFormTitle');
         const locationField = document.getElementById('locationField');
@@ -349,18 +424,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mode === 'receive') {
             titleEl.textContent = 'Receive Stock';
             locationField.style.display = 'block';
+            locationField.querySelector('label').textContent = 'Location';
             toLocationField.style.display = 'none';
             batchField.style.display = 'block';
-            submitBtn.textContent = 'Receive';
+            submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-down me-1"></i> Receive';
         } else if (mode === 'move') {
             titleEl.textContent = 'Move Stock';
             locationField.style.display = 'block';
             locationField.querySelector('label').textContent = 'From Location';
             toLocationField.style.display = 'block';
             batchField.style.display = 'none';
-            submitBtn.textContent = 'Move';
+            submitBtn.innerHTML = '<i class="bi bi-arrows-move me-1"></i> Move';
 
-            // Pre-fill from location if only one
             if (item.stock_levels && item.stock_levels.length === 1) {
                 document.getElementById('actionLocationId').value = item.stock_levels[0].location_id;
             }
@@ -369,7 +444,6 @@ document.addEventListener('DOMContentLoaded', function() {
         actionForm.style.display = 'block';
     }
 
-    // Clear result
     clearResultBtn.addEventListener('click', function() {
         resultCard.style.display = 'none';
         actionForm.style.display = 'none';
@@ -397,57 +471,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 const locationId = document.getElementById('actionLocationId').value;
                 const batch = document.getElementById('actionBatchNumber').value;
 
-                if (!locationId) {
-                    alert('Please select a location');
-                    return;
-                }
+                if (!locationId) { alert('Please select a location'); return; }
 
                 endpoint = '/api/quick-receive';
-                body = {
-                    item_id: parseInt(itemId),
-                    location_id: parseInt(locationId),
-                    quantity: quantity,
-                    batch_number: batch
-                };
+                body = { item_id: parseInt(itemId), location_id: parseInt(locationId), quantity: quantity, batch_number: batch };
             } else if (mode === 'move') {
                 const fromLocationId = document.getElementById('actionLocationId').value;
                 const toLocationId = document.getElementById('actionToLocationId').value;
 
-                if (!fromLocationId || !toLocationId) {
-                    alert('Please select both locations');
-                    return;
-                }
+                if (!fromLocationId || !toLocationId) { alert('Please select both locations'); return; }
 
                 endpoint = '/api/quick-move';
-                body = {
-                    item_id: parseInt(itemId),
-                    from_location_id: parseInt(fromLocationId),
-                    to_location_id: parseInt(toLocationId),
-                    quantity: quantity
-                };
+                body = { item_id: parseInt(itemId), from_location_id: parseInt(fromLocationId), to_location_id: parseInt(toLocationId), quantity: quantity };
             }
 
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: JSON.stringify(body)
             });
 
             const result = await response.json();
-
             if (result.success) {
                 alert(result.message);
                 clearResultBtn.click();
             } else {
                 alert('Error: ' + result.error);
             }
-
         } catch (err) {
             alert('Error: ' + err.message);
         }
+    });
+
+    // Quantity controls
+    document.querySelectorAll('[data-quantity-control]').forEach(container => {
+        const input = container.querySelector('input');
+        container.querySelector('[data-minus]').addEventListener('click', () => {
+            input.value = Math.max(0, parseInt(input.value || 0) - 1);
+        });
+        container.querySelector('[data-plus]').addEventListener('click', () => {
+            input.value = parseInt(input.value || 0) + 1;
+        });
     });
 });
 </script>

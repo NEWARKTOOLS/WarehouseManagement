@@ -119,6 +119,9 @@
             <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i> Logout
             </a>
+            <div class="text-center mt-2">
+                <small class="text-muted" style="font-size: 0.7rem;">v{{ config.get('WMS_VERSION', '1.1.0') }}</small>
+            </div>
         </div>
     </nav>
 
@@ -197,6 +200,9 @@
                 <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </a>
+                <div class="text-center mt-3">
+                    <small class="text-muted">v{{ config.get('WMS_VERSION', '1.1.0') }}</small>
+                </div>
             </nav>
         </div>
     </div>

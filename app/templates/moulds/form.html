@@ -50,10 +50,6 @@
                                 <label class="form-label">Number of Cavities</label>
                                 <input type="number" class="form-control" name="num_cavities" value="{{ mould.num_cavities if mould else 1 }}" min="1">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Cycle Time (s)</label>
-                                <input type="number" class="form-control" name="cycle_time_seconds" step="0.1" value="{{ mould.cycle_time_seconds if mould else '' }}">
-                            </div>
 
                             <div class="col-md-6">
                                 <label class="form-label">Material Compatibility</label>
