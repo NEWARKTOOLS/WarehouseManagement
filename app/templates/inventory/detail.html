@@ -52,6 +52,7 @@
                                 <small class="text-muted">Available</small>
                             </div>
                         </div>
+                        {% if current_user.can_view_pricing() %}
                         <div class="col-6 col-md-3">
                             <div class="p-3 bg-light rounded text-center">
                                 <div class="fs-4 fw-bold">&pound;{{ "{:,.2f}".format(item.unit_cost or 0) }}</div>
@@ -64,6 +65,7 @@
                                 <small class="text-muted">Stock Value</small>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
 
                     {% if item.is_low_stock %}

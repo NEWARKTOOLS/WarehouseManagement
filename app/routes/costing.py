@@ -16,6 +16,15 @@ from app.models.inventory import Item
 bp = Blueprint('costing', __name__, url_prefix='/costing')
 
 
+@bp.before_request
+@login_required
+def check_pricing_access():
+    """Block operational roles (picker/setter) from accessing costing pages"""
+    if not current_user.can_view_pricing():
+        flash('Access denied. Your role does not have access to financial data.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+
 # ============== QUOTES ==============
 
 @bp.route('/quotes')

@@ -14,7 +14,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     first_name = db.Column(db.String(64))
     last_name = db.Column(db.String(64))
-    role = db.Column(db.String(20), nullable=False, default='worker')  # admin, worker
+    role = db.Column(db.String(20), nullable=False, default='worker')  # admin, worker, picker, setter
     avatar_filename = db.Column(db.String(255))  # Profile picture
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -45,6 +45,15 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is admin"""
         return self.role == 'admin'
+
+    def can_view_pricing(self):
+        """Check if user can see pricing, costs, and financial data.
+        Picker/packer and setter roles are operational only — no money."""
+        return self.role in ('admin', 'worker')
+
+    def is_operational(self):
+        """Check if user is an operational-only role (picker/setter)"""
+        return self.role in ('picker', 'setter')
 
 
 @login_manager.user_loader

@@ -70,7 +70,7 @@
                             <th>Customer</th>
                             <th>Date</th>
                             <th>Required</th>
-                            <th class="text-end">Total</th>
+                            {% if current_user.can_view_pricing() %}<th class="text-end">Total</th>{% endif %}
                             <th>Status</th>
                             <th></th>
                         </tr>
@@ -86,7 +86,7 @@
                             <td>{{ order.customer.name }}</td>
                             <td>{{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '-' }}</td>
                             <td>{{ order.required_date.strftime('%d/%m/%Y') if order.required_date else '-' }}</td>
-                            <td class="text-end">&pound;{{ "{:,.2f}".format(order.total) }}</td>
+                            {% if current_user.can_view_pricing() %}<td class="text-end">&pound;{{ "{:,.2f}".format(order.total) }}</td>{% endif %}
                             <td>
                                 <span class="status-badge status-{{ order.status }}">
                                     {{ order.status|replace('_', ' ')|title }}
@@ -131,7 +131,7 @@
             </div>
             <div class="item-meta">
                 <span><i class="bi bi-calendar me-1"></i>{{ order.required_date.strftime('%d/%m') if order.required_date else 'No date' }}</span>
-                <span>&pound;{{ "{:,.2f}".format(order.total) }}</span>
+                {% if current_user.can_view_pricing() %}<span>&pound;{{ "{:,.2f}".format(order.total) }}</span>{% endif %}
             </div>
         </a>
         {% else %}

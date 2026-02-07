@@ -23,9 +23,12 @@
                             <div class="col-md-6">
                                 <label class="form-label">Role *</label>
                                 <select class="form-select" name="role" required>
-                                    <option value="worker" {% if user and user.role == 'worker' %}selected{% endif %}>Worker</option>
+                                    <option value="worker" {% if user and user.role == 'worker' %}selected{% endif %}>Worker (Full Access)</option>
+                                    <option value="picker" {% if user and user.role == 'picker' %}selected{% endif %}>Picker/Packer (No Pricing)</option>
+                                    <option value="setter" {% if user and user.role == 'setter' %}selected{% endif %}>Mould Setter (No Pricing)</option>
                                     <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Admin</option>
                                 </select>
+                                <small class="text-muted">Picker/Packer &amp; Mould Setter cannot see pricing, costs, or financial data</small>
                             </div>
 
                             <div class="col-md-6">

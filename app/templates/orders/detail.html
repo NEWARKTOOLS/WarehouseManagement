@@ -53,8 +53,10 @@
                                     <th>Item</th>
                                     <th class="text-end">Qty</th>
                                     <th class="text-end">Shipped</th>
+                                    {% if current_user.can_view_pricing() %}
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Total</th>
+                                    {% endif %}
                                 </tr>
                             </thead>
                             <tbody>
@@ -80,11 +82,14 @@
                                         <span class="text-muted">0</span>
                                         {% endif %}
                                     </td>
+                                    {% if current_user.can_view_pricing() %}
                                     <td class="text-end">&pound;{{ "{:,.2f}".format(line.unit_price) }}</td>
                                     <td class="text-end">&pound;{{ "{:,.2f}".format(line.line_total) }}</td>
+                                    {% endif %}
                                 </tr>
                                 {% endfor %}
                             </tbody>
+                            {% if current_user.can_view_pricing() %}
                             <tfoot>
                                 <tr>
                                     <th colspan="4" class="text-end">Subtotal</th>
@@ -105,6 +110,7 @@
                                     <td class="text-end"><strong>&pound;{{ "{:,.2f}".format(order.total) }}</strong></td>
                                 </tr>
                             </tfoot>
+                            {% endif %}
                         </table>
                     </div>
                     {% else %}
@@ -123,6 +129,9 @@
                     <div class="d-flex flex-wrap gap-2">
                         <a href="{{ url_for('orders.packing_list', order_id=order.id) }}" class="btn btn-outline-primary" target="_blank">
                             <i class="bi bi-file-pdf me-1"></i> Packing List
+                        </a>
+                        <a href="{{ url_for('orders.delivery_note', order_id=order.id) }}" class="btn btn-outline-secondary" target="_blank">
+                            <i class="bi bi-file-text me-1"></i> Delivery Note
                         </a>
 
                         {% if order.status == 'new' and order.lines.count() > 0 %}

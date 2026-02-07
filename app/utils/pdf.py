@@ -668,6 +668,416 @@ def generate_packing_list(order):
     return buffer
 
 
+def generate_delivery_note(order):
+    """
+    Generate a customer-facing delivery note PDF for signing on delivery.
+
+    Similar layout to packing list but titled "DELIVERY NOTE", excludes
+    warehouse-use signature section, and has a prominent customer signature
+    section for proof of delivery.
+    """
+    from flask import current_app
+    from app.models.settings import CompanySettings
+    import os
+
+    buffer = BytesIO()
+    page_w, page_h = A4
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
+
+    usable_width = page_w - doc.leftMargin - doc.rightMargin
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    settings = CompanySettings.get_settings()
+
+    # Styles (reuse same style definitions as packing list)
+    style_body = ParagraphStyle(
+        'DNBody', parent=styles['Normal'], fontSize=9,
+        textColor=_TEXT_DARK, leading=13,
+    )
+    style_body_small = ParagraphStyle(
+        'DNBodySmall', parent=styles['Normal'], fontSize=8,
+        textColor=_TEXT_MID, leading=11,
+    )
+    style_label = ParagraphStyle(
+        'DNLabel', parent=styles['Normal'], fontSize=8,
+        textColor=_TEXT_MID, leading=11,
+    )
+    style_value = ParagraphStyle(
+        'DNValue', parent=styles['Normal'], fontSize=9,
+        textColor=_TEXT_DARK, fontName='Helvetica-Bold', leading=13,
+    )
+    style_section = ParagraphStyle(
+        'DNSection', parent=styles['Normal'], fontSize=10,
+        textColor=_PRIMARY, fontName='Helvetica-Bold',
+        spaceBefore=6, spaceAfter=4,
+    )
+    style_table_header = ParagraphStyle(
+        'DNTableHeader', parent=styles['Normal'], fontSize=8,
+        textColor=colors.white, fontName='Helvetica-Bold',
+        alignment=TA_CENTER, leading=11,
+    )
+    style_table_cell = ParagraphStyle(
+        'DNTableCell', parent=styles['Normal'], fontSize=8,
+        textColor=_TEXT_DARK, leading=11,
+    )
+    style_table_cell_center = ParagraphStyle(
+        'DNTableCellCenter', parent=style_table_cell, alignment=TA_CENTER,
+    )
+
+    # ==================================================================
+    # 1. HEADER BAR
+    # ==================================================================
+    company_name = settings.company_name or ''
+    header_bar_data = [[Paragraph(
+        f"<font color='white' size='14'><b>{company_name}</b></font>",
+        ParagraphStyle('HeaderBar', parent=styles['Normal'],
+                       alignment=TA_LEFT, textColor=colors.white),
+    )]]
+    header_bar = Table(header_bar_data, colWidths=[usable_width])
+    header_bar.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(header_bar)
+    story.append(Spacer(1, 10))
+
+    # ==================================================================
+    # 2. LOGOS
+    # ==================================================================
+    company_logo = None
+    if settings.logo_filename:
+        logo_path = os.path.join(
+            current_app.root_path, 'static', 'img', settings.logo_filename)
+        company_logo = _load_image_safe(logo_path, 4 * cm, 2 * cm)
+
+    customer = order.customer
+    customer_logo = None
+    if getattr(customer, 'logo_filename', None):
+        cust_logo_path = os.path.join(
+            current_app.root_path, 'static', 'img', 'customers',
+            customer.logo_filename)
+        customer_logo = _load_image_safe(cust_logo_path, 4 * cm, 2 * cm)
+
+    if company_logo or customer_logo:
+        logo_row = [[company_logo or '', customer_logo or '']]
+        logo_table = Table(logo_row, colWidths=[usable_width / 2] * 2)
+        logo_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(logo_table)
+        story.append(Spacer(1, 6))
+
+    # ==================================================================
+    # 3. COMPANY DETAILS
+    # ==================================================================
+    company_text_parts = []
+    if settings.address_line1:
+        company_text_parts.append(settings.address_line1)
+    if settings.address_line2:
+        company_text_parts.append(settings.address_line2)
+    city_line = ' '.join(filter(None, [settings.city, settings.postcode]))
+    if city_line:
+        company_text_parts.append(city_line)
+    contact_parts = []
+    if settings.phone:
+        contact_parts.append(f"Tel: {settings.phone}")
+    if settings.email:
+        contact_parts.append(settings.email)
+    if contact_parts:
+        company_text_parts.append(' | '.join(contact_parts))
+    if settings.vat_number:
+        company_text_parts.append(f"VAT: {settings.vat_number}")
+
+    if company_text_parts:
+        story.append(Paragraph(
+            '<br/>'.join(company_text_parts), style_body_small))
+        story.append(Spacer(1, 6))
+
+    story.append(HRFlowable(
+        width='100%', thickness=0.5, color=_BORDER,
+        spaceAfter=10, spaceBefore=4))
+
+    # ==================================================================
+    # 4. "DELIVERY NOTE" TITLE
+    # ==================================================================
+    title_style = ParagraphStyle(
+        'DNTitle', parent=styles['Heading1'],
+        fontSize=26, fontName='Helvetica-Bold',
+        textColor=_PRIMARY, alignment=TA_CENTER,
+        spaceAfter=4, spaceBefore=2, borderWidth=0,
+    )
+    story.append(Paragraph('DELIVERY NOTE', title_style))
+    story.append(Spacer(1, 6))
+
+    # ==================================================================
+    # 5. ORDER INFORMATION
+    # ==================================================================
+    info_data = [[
+        Paragraph('Order Number', style_label),
+        Paragraph(order.order_number or '-', style_value),
+        Paragraph('Date', style_label),
+        Paragraph(datetime.now().strftime('%d/%m/%Y'), style_value),
+        Paragraph('Customer PO', style_label),
+        Paragraph(order.customer_po or '-', style_value),
+    ]]
+    info_col_w = usable_width / 6
+    info_table = Table(info_data, colWidths=[info_col_w] * 6)
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY_LIGHT),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('BOX', (0, 0), (-1, -1), 0.5, _BORDER),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 14))
+
+    # ==================================================================
+    # 6. CUSTOMER / DELIVERY ADDRESS
+    # ==================================================================
+    addr_half = usable_width / 2 - 3 * mm
+
+    cust_parts = [Paragraph('<b>CUSTOMER</b>', style_section)]
+    cust_parts.append(Paragraph(f'<b>{customer.name}</b>', style_body))
+    if customer.address_line1:
+        cust_parts.append(Paragraph(customer.address_line1, style_body))
+    if customer.address_line2:
+        cust_parts.append(Paragraph(customer.address_line2, style_body))
+    city_pc = ' '.join(filter(None, [customer.city, customer.postcode]))
+    if city_pc:
+        cust_parts.append(Paragraph(city_pc, style_body))
+    if customer.country and customer.country != 'United Kingdom':
+        cust_parts.append(Paragraph(customer.country, style_body))
+
+    del_parts = [Paragraph('<b>DELIVERY ADDRESS</b>', style_section)]
+    del_line1 = order.delivery_address_line1 or customer.address_line1 or ''
+    if del_line1:
+        del_parts.append(Paragraph(del_line1, style_body))
+    if order.delivery_address_line2:
+        del_parts.append(Paragraph(order.delivery_address_line2, style_body))
+    del_city_pc = ' '.join(filter(None, [
+        order.delivery_city or '', order.delivery_postcode or '']))
+    if del_city_pc.strip():
+        del_parts.append(Paragraph(del_city_pc, style_body))
+    del_country = order.delivery_country or ''
+    if del_country and del_country != 'United Kingdom':
+        del_parts.append(Paragraph(del_country, style_body))
+
+    addr_data = [[cust_parts, del_parts]]
+    addr_table = Table(addr_data, colWidths=[addr_half, addr_half], hAlign='LEFT')
+    addr_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('BOX', (0, 0), (0, 0), 0.5, _BORDER),
+        ('BOX', (1, 0), (1, 0), 0.5, _BORDER),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+    ]))
+    story.append(addr_table)
+    story.append(Spacer(1, 14))
+
+    # ==================================================================
+    # 7. LINE ITEMS TABLE (no prices — delivery note is quantity only)
+    # ==================================================================
+    story.append(Paragraph('<b>ITEMS</b>', style_section))
+    story.append(Spacer(1, 4))
+
+    tick_box = '\u2610'
+    header_labels = [tick_box, '#', 'SKU', 'Description', 'Qty', 'Unit']
+    header_row = [Paragraph(h, style_table_header) for h in header_labels]
+    items_data = [header_row]
+
+    total_qty = 0
+    for line in order.lines:
+        if line.is_custom_item:
+            sku = line.custom_sku or 'CUSTOM'
+            description = line.custom_description or ''
+            unit = 'each'
+        else:
+            sku = line.item.sku if line.item else '-'
+            description = line.item.name if line.item else '-'
+            unit = line.item.unit_of_measure if line.item else 'each'
+
+        qty = line.quantity_ordered or 0
+        total_qty += qty
+
+        row = [
+            Paragraph(tick_box, style_table_cell_center),
+            Paragraph(str(line.line_number), style_table_cell_center),
+            Paragraph(sku, style_table_cell),
+            Paragraph(description, style_table_cell),
+            Paragraph(str(int(qty)), style_table_cell_center),
+            Paragraph(unit, style_table_cell_center),
+        ]
+        items_data.append(row)
+
+    total_row = [
+        '', '', '',
+        Paragraph('<b>TOTAL QTY</b>', ParagraphStyle(
+            'TotalRight', parent=style_table_cell, alignment=TA_RIGHT)),
+        Paragraph(f'<b>{int(total_qty)}</b>', style_table_cell_center),
+        '',
+    ]
+    items_data.append(total_row)
+
+    col_widths = [
+        0.9 * cm, 0.8 * cm, 2.8 * cm, 7.5 * cm, 1.8 * cm, 2.2 * cm,
+    ]
+
+    total_row_idx = len(items_data) - 1
+
+    table_style_cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), _PRIMARY),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, 0), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 1), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, _PRIMARY),
+        ('LINEBELOW', (0, 1), (-1, -2), 0.25, _BORDER),
+        ('LINEABOVE', (0, total_row_idx), (-1, total_row_idx), 1, _PRIMARY),
+        ('LINEBELOW', (0, total_row_idx), (-1, total_row_idx), 1, _PRIMARY),
+        ('LINEBEFORE', (0, 0), (0, -1), 0.5, _BORDER),
+        ('LINEAFTER', (-1, 0), (-1, -1), 0.5, _BORDER),
+        ('BACKGROUND', (0, total_row_idx), (-1, total_row_idx), _PRIMARY_LIGHT),
+        ('FONTNAME', (0, total_row_idx), (-1, total_row_idx), 'Helvetica-Bold'),
+    ]
+
+    for i in range(1, total_row_idx):
+        if i % 2 == 0:
+            table_style_cmds.append(
+                ('BACKGROUND', (0, i), (-1, i), _ROW_ALT))
+
+    items_table = Table(items_data, colWidths=col_widths, hAlign='LEFT',
+                        repeatRows=1)
+    items_table.setStyle(TableStyle(table_style_cmds))
+    story.append(items_table)
+    story.append(Spacer(1, 14))
+
+    # ==================================================================
+    # 8. DELIVERY INSTRUCTIONS
+    # ==================================================================
+    if order.delivery_instructions:
+        warn_data = [[Paragraph(
+            f'\u26a0  <b>DELIVERY INSTRUCTIONS:</b> {order.delivery_instructions}',
+            ParagraphStyle(
+                'DNWarning', parent=style_body, fontSize=9,
+                textColor=colors.HexColor('#6d4c00'),
+            ),
+        )]]
+        warn_table = Table(warn_data, colWidths=[usable_width - 6 * mm])
+        warn_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), _WARNING_BG),
+            ('BOX', (0, 0), (-1, -1), 1, _WARNING_BORDER),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        story.append(warn_table)
+        story.append(Spacer(1, 14))
+
+    # ==================================================================
+    # 9. CUSTOMER SIGNATURE — PROOF OF DELIVERY
+    # ==================================================================
+    story.append(HRFlowable(
+        width='100%', thickness=1, color=_PRIMARY,
+        spaceAfter=6, spaceBefore=4))
+
+    story.append(Paragraph(
+        '<b>PROOF OF DELIVERY</b>', ParagraphStyle(
+            'DNProof', parent=styles['Heading2'],
+            fontSize=14, fontName='Helvetica-Bold',
+            textColor=_PRIMARY, alignment=TA_CENTER,
+            spaceAfter=6,
+        )))
+
+    story.append(Paragraph(
+        'I confirm that the goods listed above have been received '
+        'in good condition and the quantities are correct.',
+        style_body))
+    story.append(Spacer(1, 12))
+
+    sig_line = '_' * 35
+    date_line = '_' * 20
+
+    sig_data = [
+        [Paragraph(f'<b>Print Name:</b>  {sig_line}', style_body),
+         Paragraph(f'<b>Date:</b>  {date_line}', style_body)],
+        [Paragraph(f'<b>Signature:</b>  {sig_line}', style_body),
+         Paragraph(f'<b>Time:</b>  {date_line}', style_body)],
+    ]
+    sig_table = Table(sig_data, colWidths=[usable_width / 2] * 2)
+    sig_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('BOX', (0, 0), (-1, -1), 1, _PRIMARY),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.5, _BORDER),
+        ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY_LIGHT),
+    ]))
+    story.append(sig_table)
+    story.append(Spacer(1, 10))
+
+    # Any items damaged or missing?
+    story.append(Paragraph('<b>DISCREPANCIES / DAMAGE NOTES:</b>', style_section))
+    story.append(Spacer(1, 4))
+    notes_box_data = [['']]
+    notes_box = Table(notes_box_data, colWidths=[usable_width],
+                      rowHeights=[3 * cm])
+    notes_box.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.5, _BORDER),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+    ]))
+    story.append(notes_box)
+
+    # ==================================================================
+    # 10. FOOTER
+    # ==================================================================
+    if settings.packing_list_footer:
+        story.append(Spacer(1, 10))
+        story.append(HRFlowable(
+            width='100%', thickness=0.5, color=_BORDER,
+            spaceAfter=6, spaceBefore=2))
+        story.append(Paragraph(settings.packing_list_footer, style_body))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
 def generate_labels_pdf(items_data, label_size='avery_l7163'):
     """
     Generate a PDF with labels (Avery compatible)

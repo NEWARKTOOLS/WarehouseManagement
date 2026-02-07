@@ -5,7 +5,7 @@ from app import db
 from app.models.orders import SalesOrder, SalesOrderLine, Delivery, Customer
 from app.models.inventory import Item, StockLevel, StockMovement
 from app.models.production import ProductionOrder
-from app.utils.pdf import generate_packing_list
+from app.utils.pdf import generate_packing_list, generate_delivery_note
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -412,7 +412,7 @@ def process_order(order_id):
 
     # Build flash message
     if production_orders_created:
-        po_list = ', '.join([f"{po['item'].sku} ({po['order'].quantity_required|int} pcs)" for po in production_orders_created])
+        po_list = ', '.join([f"{po['item'].sku} ({int(po['order'].quantity_required)} pcs)" for po in production_orders_created])
         flash(f'Created {len(production_orders_created)} production order(s): {po_list}', 'success')
 
     if items_in_stock and not items_short:
@@ -486,6 +486,21 @@ def packing_list(order_id):
     response = make_response(pdf_buffer.getvalue())
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename=packing_list_{order.order_number}.pdf'
+
+    return response
+
+
+@orders_bp.route('/<int:order_id>/delivery-note')
+@login_required
+def delivery_note(order_id):
+    """Generate delivery note PDF (customer-facing, for signing)"""
+    order = SalesOrder.query.get_or_404(order_id)
+
+    pdf_buffer = generate_delivery_note(order)
+
+    response = make_response(pdf_buffer.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=delivery_note_{order.order_number}.pdf'
 
     return response
 
