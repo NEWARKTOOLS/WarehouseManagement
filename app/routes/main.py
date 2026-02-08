@@ -1,11 +1,12 @@
+import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, request, send_from_directory, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
 from app.models.inventory import Item, StockLevel, StockMovement
 from app.models.production import ProductionOrder, Machine, Mould, ScheduledJob, AwaitingSorting
-from app.models.orders import SalesOrder, Customer
+from app.models.orders import SalesOrder, SalesOrderLine, Delivery, Customer
 from app.models.settings import CompanySettings
 
 main_bp = Blueprint('main', __name__)
@@ -157,6 +158,145 @@ def manifest():
             }
         ]
     })
+
+
+@main_bp.route('/search')
+@login_required
+def search():
+    """Global search across orders, deliveries, customers, items"""
+    q = request.args.get('q', '').strip()
+    if not q:
+        return render_template('search.html', query='', results=None)
+
+    results = {
+        'orders': [],
+        'deliveries': [],
+        'customers': [],
+        'items': [],
+        'production_orders': [],
+    }
+
+    # Search orders by order number or customer PO
+    results['orders'] = SalesOrder.query.filter(
+        db.or_(
+            SalesOrder.order_number.ilike(f'%{q}%'),
+            SalesOrder.customer_po.ilike(f'%{q}%')
+        )
+    ).order_by(SalesOrder.created_at.desc()).limit(20).all()
+
+    # Search deliveries by delivery number
+    results['deliveries'] = Delivery.query.filter(
+        db.or_(
+            Delivery.delivery_number.ilike(f'%{q}%'),
+            Delivery.tracking_number.ilike(f'%{q}%')
+        )
+    ).order_by(Delivery.created_at.desc()).limit(20).all()
+
+    # Search customers by name or code
+    results['customers'] = Customer.query.filter(
+        Customer.is_active == True,
+        db.or_(
+            Customer.customer_code.ilike(f'%{q}%'),
+            Customer.name.ilike(f'%{q}%'),
+            Customer.contact_name.ilike(f'%{q}%')
+        )
+    ).limit(20).all()
+
+    # Search items by SKU, name, or barcode
+    results['items'] = Item.query.filter(
+        Item.is_active == True,
+        db.or_(
+            Item.sku.ilike(f'%{q}%'),
+            Item.name.ilike(f'%{q}%'),
+            Item.barcode.ilike(f'%{q}%')
+        )
+    ).limit(20).all()
+
+    # Search production orders
+    results['production_orders'] = ProductionOrder.query.filter(
+        ProductionOrder.order_number.ilike(f'%{q}%')
+    ).order_by(ProductionOrder.created_at.desc()).limit(20).all()
+
+    total = sum(len(v) for v in results.values())
+
+    return render_template('search.html', query=q, results=results, total=total)
+
+
+@main_bp.route('/search/api')
+@login_required
+def search_api():
+    """Quick search API for search bar suggestions"""
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 2:
+        return jsonify([])
+
+    suggestions = []
+
+    # Orders
+    orders = SalesOrder.query.filter(
+        db.or_(
+            SalesOrder.order_number.ilike(f'%{q}%'),
+            SalesOrder.customer_po.ilike(f'%{q}%')
+        )
+    ).limit(5).all()
+    for o in orders:
+        suggestions.append({
+            'type': 'order',
+            'label': f'{o.order_number} - {o.customer.name}',
+            'url': f'/orders/{o.id}'
+        })
+
+    # Deliveries
+    deliveries = Delivery.query.filter(
+        Delivery.delivery_number.ilike(f'%{q}%')
+    ).limit(5).all()
+    for d in deliveries:
+        suggestions.append({
+            'type': 'delivery',
+            'label': f'{d.delivery_number} - {d.order.customer.name}',
+            'url': f'/orders/{d.order_id}'
+        })
+
+    # Items
+    items = Item.query.filter(
+        Item.is_active == True,
+        db.or_(
+            Item.sku.ilike(f'%{q}%'),
+            Item.name.ilike(f'%{q}%'),
+            Item.barcode.ilike(f'%{q}%')
+        )
+    ).limit(5).all()
+    for i in items:
+        suggestions.append({
+            'type': 'item',
+            'label': f'{i.sku} - {i.name}',
+            'url': f'/inventory/{i.id}'
+        })
+
+    # Customers
+    customers = Customer.query.filter(
+        Customer.is_active == True,
+        db.or_(
+            Customer.customer_code.ilike(f'%{q}%'),
+            Customer.name.ilike(f'%{q}%')
+        )
+    ).limit(5).all()
+    for c in customers:
+        suggestions.append({
+            'type': 'customer',
+            'label': f'{c.customer_code} - {c.name}',
+            'url': f'/customers/{c.id}'
+        })
+
+    return jsonify(suggestions)
+
+
+@main_bp.route('/uploads/<path:filename>')
+@login_required
+def uploaded_file(filename):
+    """Serve uploaded files from the uploads folder"""
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'instance/uploads')
+    return send_from_directory(upload_folder, filename)
 
 
 @main_bp.route('/sw.js')

@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <!-- Item & Mould Selection -->
@@ -191,6 +191,35 @@
                     <div class="col-12">
                         <label class="form-label">Notes</label>
                         <textarea class="form-control" name="notes" rows="2">{{ setup_sheet.notes if setup_sheet else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Uploads -->
+        <div class="card mb-3">
+            <div class="card-header">Attachments</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Setup Sheet Image</label>
+                        <input type="file" class="form-control" name="image" accept="image/*">
+                        <div class="form-text">Photo of the part, mould or setup (JPG, PNG)</div>
+                        {% if setup_sheet and setup_sheet.image_filename %}
+                        <div class="mt-2">
+                            <span class="badge bg-success"><i class="bi bi-image me-1"></i>Current: {{ setup_sheet.image_filename }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Setup Sheet PDF</label>
+                        <input type="file" class="form-control" name="setup_pdf" accept=".pdf">
+                        <div class="form-text">Upload existing setup sheet document (PDF)</div>
+                        {% if setup_sheet and setup_sheet.setup_sheet_pdf %}
+                        <div class="mt-2">
+                            <span class="badge bg-success"><i class="bi bi-file-pdf me-1"></i>Current: {{ setup_sheet.setup_sheet_pdf }}</span>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

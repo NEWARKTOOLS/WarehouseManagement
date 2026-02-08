@@ -71,14 +71,39 @@
             border-radius: 3px;
             padding: 1.5mm 2mm;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-direction: row;
+            align-items: stretch;
             justify-content: center;
             text-align: center;
             page-break-after: always;
             page-break-inside: avoid;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             overflow: hidden;
+        }
+
+        .label-image {
+            flex: 0 0 auto;
+            width: {{ label_format.label_height - 4 }}mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1.5mm;
+            overflow: hidden;
+        }
+
+        .label-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .label-content {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
         }
 
         .label-company {
@@ -226,34 +251,41 @@
         {% for item in items %}
             {% for copy in range(copies.get(item.id, 1)) %}
             <div class="label">
-                {% if label_format.show_company and company and company.company_name %}
-                <div class="label-company">{{ company.company_name }}</div>
-                {% endif %}
-
-                {% if label_format.show_name %}
-                <div class="label-name">{{ item.name }}</div>
-                {% endif %}
-
-                {% if label_format.show_barcode %}
-                <div class="label-barcode">
-                    <img src="" alt="barcode" data-item-id="{{ item.id }}" class="barcode-img">
+                {% if label_format.show_image and item.image_filename %}
+                <div class="label-image">
+                    <img src="{{ url_for('main.uploaded_file', filename=item.image_filename) }}" alt="{{ item.name }}">
                 </div>
                 {% endif %}
+                <div class="label-content">
+                    {% if label_format.show_company and company and company.company_name %}
+                    <div class="label-company">{{ company.company_name }}</div>
+                    {% endif %}
 
-                {% if label_format.show_sku %}
-                <div class="label-sku">{{ item.barcode or item.sku }}</div>
-                {% endif %}
+                    {% if label_format.show_name %}
+                    <div class="label-name">{{ item.name }}</div>
+                    {% endif %}
 
-                {% if label_format.show_quantity %}
-                    {% if quantities.get(item.id) %}
-                    <div class="label-qty">QTY: {{ quantities.get(item.id) }}</div>
-                    {% else %}
-                    <div class="label-qty-blank">
-                        <span class="qty-label">QTY:</span>
-                        <span class="qty-line"></span>
+                    {% if label_format.show_barcode %}
+                    <div class="label-barcode">
+                        <img src="" alt="barcode" data-item-id="{{ item.id }}" class="barcode-img">
                     </div>
                     {% endif %}
-                {% endif %}
+
+                    {% if label_format.show_sku %}
+                    <div class="label-sku">{{ item.barcode or item.sku }}</div>
+                    {% endif %}
+
+                    {% if label_format.show_quantity %}
+                        {% if quantities.get(item.id) %}
+                        <div class="label-qty">QTY: {{ quantities.get(item.id) }}</div>
+                        {% else %}
+                        <div class="label-qty-blank">
+                            <span class="qty-label">QTY:</span>
+                            <span class="qty-line"></span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         {% endfor %}

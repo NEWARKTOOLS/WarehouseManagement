@@ -153,6 +153,7 @@ def labels():
         settings.label_show_name = 'label_show_name' in request.form
         settings.label_show_barcode = 'label_show_barcode' in request.form
         settings.label_show_quantity = 'label_show_quantity' in request.form
+        settings.label_show_image = 'label_show_image' in request.form
 
         db.session.commit()
         flash('Label settings saved successfully', 'success')

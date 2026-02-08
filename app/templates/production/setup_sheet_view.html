@@ -209,6 +209,31 @@
     </div>
     {% endif %}
 
+    <!-- Attachments -->
+    {% if setup_sheet.image_filename or setup_sheet.setup_sheet_pdf %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-paperclip me-1"></i> Attachments
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% if setup_sheet.setup_sheet_pdf %}
+                <div class="col-md-6">
+                    <a href="{{ url_for('main.uploaded_file', filename=setup_sheet.setup_sheet_pdf) }}" class="btn btn-warning w-100" target="_blank">
+                        <i class="bi bi-file-pdf me-1"></i> View Setup Sheet PDF
+                    </a>
+                </div>
+                {% endif %}
+                {% if setup_sheet.image_filename %}
+                <div class="col-md-6">
+                    <img src="{{ url_for('main.uploaded_file', filename=setup_sheet.image_filename) }}" class="img-fluid rounded" alt="Setup sheet image">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Footer -->
     <div class="text-muted small mt-3">
         <p class="mb-1">Created: {{ setup_sheet.created_at.strftime('%d/%m/%Y %H:%M') }}</p>

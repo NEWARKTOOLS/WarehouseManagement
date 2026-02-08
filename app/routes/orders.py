@@ -1,6 +1,8 @@
+import os
 from datetime import datetime, date, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, make_response
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, make_response, current_app
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from app import db
 from app.models.orders import SalesOrder, SalesOrderLine, Delivery, Customer
 from app.models.inventory import Item, StockLevel, StockMovement
@@ -503,6 +505,35 @@ def delivery_note(order_id):
     response.headers['Content-Disposition'] = f'inline; filename=delivery_note_{order.order_number}.pdf'
 
     return response
+
+
+@orders_bp.route('/delivery/<int:delivery_id>/upload-signed', methods=['POST'])
+@login_required
+def upload_signed_delivery_note(delivery_id):
+    """Upload a signed delivery note (photo/scan) for a delivery"""
+    delivery = Delivery.query.get_or_404(delivery_id)
+
+    if 'signed_note' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(url_for('orders.order_detail', order_id=delivery.order_id))
+
+    file = request.files['signed_note']
+    if not file or not file.filename:
+        flash('No file selected', 'error')
+        return redirect(url_for('orders.order_detail', order_id=delivery.order_id))
+
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    if ext not in current_app.config['ALLOWED_EXTENSIONS']:
+        flash('Invalid file type. Allowed: PNG, JPG, PDF', 'error')
+        return redirect(url_for('orders.order_detail', order_id=delivery.order_id))
+
+    filename = secure_filename(f"signed_{delivery.delivery_number}_{file.filename}")
+    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+    delivery.signed_delivery_note = filename
+    db.session.commit()
+
+    flash(f'Signed delivery note uploaded for {delivery.delivery_number}', 'success')
+    return redirect(url_for('orders.order_detail', order_id=delivery.order_id))
 
 
 @orders_bp.route('/<int:order_id>/dispatch', methods=['GET', 'POST'])

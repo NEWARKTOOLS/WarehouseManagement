@@ -33,6 +33,11 @@
                 <span>WMS</span>
             </h5>
         </div>
+        <div class="px-3 pb-2">
+            <form action="{{ url_for('main.search') }}" method="GET" class="d-flex">
+                <input type="text" class="form-control form-control-sm" name="q" placeholder="Search..." style="font-size: 0.8rem;">
+            </form>
+        </div>
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
@@ -147,6 +152,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body">
+            <div class="mb-2">
+                <form action="{{ url_for('main.search') }}" method="GET" class="d-flex">
+                    <input type="text" class="form-control form-control-sm" name="q" placeholder="Search orders, deliveries...">
+                    <button class="btn btn-sm btn-primary ms-1" type="submit"><i class="bi bi-search"></i></button>
+                </form>
+            </div>
             <nav class="nav flex-column">
                 <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard

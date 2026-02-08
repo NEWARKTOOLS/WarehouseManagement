@@ -234,8 +234,9 @@ class Delivery(db.Model):
     # Notes
     notes = db.Column(db.Text)
 
-    # Packing list
+    # Documentation
     packing_list_generated = db.Column(db.Boolean, default=False)
+    signed_delivery_note = db.Column(db.String(255))  # Uploaded signed delivery note filename
 
     # Tracking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

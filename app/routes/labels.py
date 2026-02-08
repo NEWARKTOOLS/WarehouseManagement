@@ -46,6 +46,7 @@ def label_preview():
         'show_name': company.label_show_name if company else True,
         'show_barcode': company.label_show_barcode if company else True,
         'show_quantity': company.label_show_quantity if company else True,
+        'show_image': company.label_show_image if company else False,
         'label_width': company.label_width if company else 89,
         'label_height': company.label_height if company else 36,
     }
@@ -86,6 +87,7 @@ def label_print():
         'show_name': company.label_show_name if company else True,
         'show_barcode': company.label_show_barcode if company else True,
         'show_quantity': company.label_show_quantity if company else True,
+        'show_image': company.label_show_image if company else False,
         'label_width': company.label_width if company else 89,
         'label_height': company.label_height if company else 36,
     }
@@ -113,6 +115,7 @@ def quick_label(item_id):
         'show_name': company.label_show_name if company else True,
         'show_barcode': company.label_show_barcode if company else True,
         'show_quantity': company.label_show_quantity if company else True,
+        'show_image': company.label_show_image if company else False,
         'label_width': company.label_width if company else 89,
         'label_height': company.label_height if company else 36,
     }

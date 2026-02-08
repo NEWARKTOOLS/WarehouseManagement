@@ -458,6 +458,26 @@ def setup_sheet_create():
             version=(existing.version + 1) if existing else 1
         )
 
+        # Handle image upload
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                if ext in current_app.config['ALLOWED_EXTENSIONS']:
+                    filename = secure_filename(f"setup_{item_id}_{mould_id}_{file.filename}")
+                    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                    setup_sheet.image_filename = filename
+
+        # Handle PDF upload
+        if 'setup_pdf' in request.files:
+            file = request.files['setup_pdf']
+            if file and file.filename:
+                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                if ext == 'pdf':
+                    filename = secure_filename(f"setup_pdf_{item_id}_{mould_id}_{file.filename}")
+                    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                    setup_sheet.setup_sheet_pdf = filename
+
         db.session.add(setup_sheet)
         db.session.commit()
 

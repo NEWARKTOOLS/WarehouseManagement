@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+{% block mobile_title %}Search{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+    <div class="page-header">
+        <h1><i class="bi bi-search me-2"></i>Search</h1>
+    </div>
+
+    <!-- Search Form -->
+    <form method="GET" action="{{ url_for('main.search') }}" class="mb-4">
+        <div class="input-group input-group-lg">
+            <input type="text" class="form-control" name="q" value="{{ query }}"
+                   placeholder="Search orders, delivery notes, customers, items..."
+                   autofocus>
+            <button class="btn btn-primary" type="submit">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
+        <div class="form-text">Search by order number (SO-...), delivery note (DEL-...), customer PO, SKU, customer name, tracking number</div>
+    </form>
+
+    {% if results %}
+    <p class="text-muted mb-3">{{ total }} result{{ 's' if total != 1 }} for "<strong>{{ query }}</strong>"</p>
+
+    <!-- Orders -->
+    {% if results.orders %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-cart me-1"></i> Orders ({{ results.orders|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Customer PO</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in results.orders %}
+                        <tr>
+                            <td><a href="{{ url_for('orders.order_detail', order_id=order.id) }}">{{ order.order_number }}</a></td>
+                            <td>{{ order.customer.name }}</td>
+                            <td>{{ order.customer_po or '-' }}</td>
+                            <td>{{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '-' }}</td>
+                            <td><span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span></td>
+                            <td>
+                                <a href="{{ url_for('orders.delivery_note', order_id=order.id) }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Delivery Note">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Deliveries -->
+    {% if results.deliveries %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-truck me-1"></i> Deliveries ({{ results.deliveries|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Delivery #</th>
+                            <th>Order</th>
+                            <th>Customer</th>
+                            <th>Dispatch Date</th>
+                            <th>Status</th>
+                            <th>Signed Note</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for delivery in results.deliveries %}
+                        <tr>
+                            <td>{{ delivery.delivery_number }}</td>
+                            <td><a href="{{ url_for('orders.order_detail', order_id=delivery.order_id) }}">{{ delivery.order.order_number }}</a></td>
+                            <td>{{ delivery.order.customer.name }}</td>
+                            <td>{{ delivery.dispatch_date.strftime('%d/%m/%Y') if delivery.dispatch_date else '-' }}</td>
+                            <td><span class="badge bg-{{ 'success' if delivery.status == 'delivered' else 'info' }}">{{ delivery.status|title }}</span></td>
+                            <td>
+                                {% if delivery.signed_delivery_note %}
+                                <a href="{{ url_for('main.uploaded_file', filename=delivery.signed_delivery_note) }}" class="btn btn-sm btn-success" target="_blank">
+                                    <i class="bi bi-file-check"></i> View
+                                </a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('orders.delivery_note', order_id=delivery.order_id) }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Delivery Note PDF">
+                                    <i class="bi bi-file-pdf"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Customers -->
+    {% if results.customers %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-people me-1"></i> Customers ({{ results.customers|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>City</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in results.customers %}
+                        <tr>
+                            <td><a href="{{ url_for('customers.customer_detail', customer_id=customer.id) }}">{{ customer.customer_code }}</a></td>
+                            <td>{{ customer.name }}</td>
+                            <td>{{ customer.contact_name or '-' }}</td>
+                            <td>{{ customer.city or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Items -->
+    {% if results.items %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-box me-1"></i> Items ({{ results.items|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Name</th>
+                            <th>Stock</th>
+                            <th>Barcode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in results.items %}
+                        <tr>
+                            <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}">{{ item.sku }}</a></td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.total_stock }}</td>
+                            <td>{{ item.barcode or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Production Orders -->
+    {% if results.production_orders %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-gear me-1"></i> Production Orders ({{ results.production_orders|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Item</th>
+                            <th>Qty Required</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po in results.production_orders %}
+                        <tr>
+                            <td><a href="{{ url_for('production.order_detail', order_id=po.id) }}">{{ po.order_number }}</a></td>
+                            <td>{{ po.item.sku if po.item else 'N/A' }} - {{ po.item.name if po.item else '' }}</td>
+                            <td>{{ po.quantity_required|int }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if po.status == 'completed' else 'primary' if po.status == 'in_progress' else 'secondary' }}">
+                                    {{ po.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if total == 0 %}
+    <div class="text-center py-5">
+        <i class="bi bi-search" style="font-size: 3rem; color: #ccc;"></i>
+        <p class="text-muted mt-3">No results found for "<strong>{{ query }}</strong>"</p>
+        <p class="text-muted small">Try searching by order number (SO-...), delivery note number (DEL-...), customer name, SKU, or tracking number</p>
+    </div>
+    {% endif %}
+
+    {% elif query == '' %}
+    <div class="text-center py-5">
+        <i class="bi bi-search" style="font-size: 3rem; color: #ccc;"></i>
+        <p class="text-muted mt-3">Enter a search term to find orders, deliveries, customers, and items</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

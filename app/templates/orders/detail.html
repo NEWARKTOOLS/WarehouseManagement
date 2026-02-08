@@ -252,6 +252,7 @@
                                     <th>Method</th>
                                     <th>Tracking</th>
                                     <th>Status</th>
+                                    <th>Signed Note</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -265,6 +266,21 @@
                                         <span class="badge bg-{{ 'success' if delivery.status == 'delivered' else 'info' }}">
                                             {{ delivery.status|title }}
                                         </span>
+                                    </td>
+                                    <td>
+                                        {% if delivery.signed_delivery_note %}
+                                        <a href="{{ url_for('main.uploaded_file', filename=delivery.signed_delivery_note) }}" class="btn btn-sm btn-success" target="_blank" title="View signed note">
+                                            <i class="bi bi-file-check"></i>
+                                        </a>
+                                        {% else %}
+                                        <form method="POST" action="{{ url_for('orders.upload_signed_delivery_note', delivery_id=delivery.id) }}" enctype="multipart/form-data" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <label class="btn btn-sm btn-outline-secondary" title="Upload signed delivery note">
+                                                <i class="bi bi-upload"></i>
+                                                <input type="file" name="signed_note" accept="image/*,.pdf" class="d-none" onchange="this.form.submit()">
+                                            </label>
+                                        </form>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}

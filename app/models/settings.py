@@ -52,6 +52,7 @@ class CompanySettings(db.Model):
     label_show_name = db.Column(db.Boolean, default=True)
     label_show_barcode = db.Column(db.Boolean, default=True)
     label_show_quantity = db.Column(db.Boolean, default=True)
+    label_show_image = db.Column(db.Boolean, default=False)
     label_width = db.Column(db.Integer, default=89)  # mm (Dymo 99012 large address)
     label_height = db.Column(db.Integer, default=36)  # mm
 
