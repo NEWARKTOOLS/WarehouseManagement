@@ -203,9 +203,11 @@ def material_delete(material_id):
 
     material = Material.query.get_or_404(material_id)
 
-    # Check if any active items are linked to this material
+    # Check if any active items are linked to this material (via the material's linked inventory item)
     from app.models.inventory import Item
-    linked_items = Item.query.filter_by(linked_material_id=material.id, is_active=True).count()
+    linked_items = 0
+    if material.item_id:
+        linked_items = Item.query.filter_by(material_id=material.item_id, is_active=True).count()
     if linked_items > 0:
         flash(f'Cannot delete {material.code} — {linked_items} active part(s) still linked to this material', 'error')
         return redirect(url_for('materials.material_detail', material_id=material.id))
