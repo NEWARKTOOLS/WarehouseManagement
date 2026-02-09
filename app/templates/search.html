@@ -151,10 +151,10 @@
     {% endif %}
 
     <!-- Items -->
-    {% if results.items %}
+    {% if results.inventory %}
     <div class="card mb-3">
         <div class="card-header">
-            <i class="bi bi-box me-1"></i> Items ({{ results.items|length }})
+            <i class="bi bi-box me-1"></i> Items ({{ results.inventory|length }})
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -168,7 +168,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in results.items %}
+                        {% for item in results.inventory %}
                         <tr>
                             <td><a href="{{ url_for('inventory.item_detail', item_id=item.id) }}">{{ item.sku }}</a></td>
                             <td>{{ item.name }}</td>

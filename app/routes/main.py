@@ -172,7 +172,7 @@ def search():
         'orders': [],
         'deliveries': [],
         'customers': [],
-        'items': [],
+        'inventory': [],
         'production_orders': [],
     }
 
@@ -203,7 +203,7 @@ def search():
     ).limit(20).all()
 
     # Search items by SKU, name, or barcode
-    results['items'] = Item.query.filter(
+    results['inventory'] = Item.query.filter(
         Item.is_active == True,
         db.or_(
             Item.sku.ilike(f'%{q}%'),
