@@ -67,27 +67,35 @@ def quote_list():
 def quote_new():
     """Create new quote"""
     if request.method == 'POST':
+        def get_float(field, default=None):
+            val = request.form.get(field, type=float)
+            return val if val is not None else default
+
+        def get_int(field, default=None):
+            val = request.form.get(field, type=int)
+            return val if val is not None else default
+
         quote = Quote(
             quote_number=Quote.generate_quote_number(),
             customer_id=request.form.get('customer_id', type=int),
             item_id=request.form.get('item_id', type=int) or None,
             description=request.form.get('description'),
-            quantity=request.form.get('quantity', type=float) or 1000,
+            quantity=get_float('quantity', 1000),
             annual_volume=request.form.get('annual_volume', type=float),
             part_weight_g=request.form.get('part_weight_g', type=float),
             runner_weight_g=request.form.get('runner_weight_g', type=float),
             cycle_time_seconds=request.form.get('cycle_time_seconds', type=float),
-            cavities=request.form.get('cavities', type=int) or 1,
+            cavities=get_int('cavities', 1),
             material_type=request.form.get('material_type'),
-            material_cost_per_kg=request.form.get('material_cost_per_kg', type=float) or 0,
-            machine_rate_per_hour=request.form.get('machine_rate_per_hour', type=float) or 45,
-            labour_rate_per_hour=request.form.get('labour_rate_per_hour', type=float) or 15,
-            setup_hours=request.form.get('setup_hours', type=float) or 2,
-            secondary_ops_cost=request.form.get('secondary_ops_cost', type=float) or 0,
-            overhead_percent=request.form.get('overhead_percent', type=float) or 20,
-            packaging_cost_per_part=request.form.get('packaging_cost_per_part', type=float) or 0,
-            target_margin_percent=request.form.get('target_margin_percent', type=float) or 30,
-            tooling_cost=request.form.get('tooling_cost', type=float) or 0,
+            material_cost_per_kg=get_float('material_cost_per_kg', 0),
+            machine_rate_per_hour=get_float('machine_rate_per_hour', 45),
+            labour_rate_per_hour=get_float('labour_rate_per_hour', 15),
+            setup_hours=get_float('setup_hours', 2),
+            secondary_ops_cost=get_float('secondary_ops_cost', 0),
+            overhead_percent=get_float('overhead_percent', 20),
+            packaging_cost_per_part=get_float('packaging_cost_per_part', 0),
+            target_margin_percent=get_float('target_margin_percent', 30),
+            tooling_cost=get_float('tooling_cost', 0),
             tooling_amortization_qty=request.form.get('tooling_amortization_qty', type=float),
             valid_until=datetime.strptime(request.form.get('valid_until'), '%Y-%m-%d').date() if request.form.get('valid_until') else None,
             notes=request.form.get('notes'),
@@ -141,25 +149,33 @@ def quote_edit(quote_id):
     quote = Quote.query.get_or_404(quote_id)
 
     if request.method == 'POST':
+        def get_float(field, default=None):
+            val = request.form.get(field, type=float)
+            return val if val is not None else default
+
+        def get_int(field, default=None):
+            val = request.form.get(field, type=int)
+            return val if val is not None else default
+
         quote.customer_id = request.form.get('customer_id', type=int)
         quote.item_id = request.form.get('item_id', type=int) or None
         quote.description = request.form.get('description')
-        quote.quantity = request.form.get('quantity', type=float) or 1000
+        quote.quantity = get_float('quantity', 1000)
         quote.annual_volume = request.form.get('annual_volume', type=float)
         quote.part_weight_g = request.form.get('part_weight_g', type=float)
         quote.runner_weight_g = request.form.get('runner_weight_g', type=float)
         quote.cycle_time_seconds = request.form.get('cycle_time_seconds', type=float)
-        quote.cavities = request.form.get('cavities', type=int) or 1
+        quote.cavities = get_int('cavities', 1)
         quote.material_type = request.form.get('material_type')
-        quote.material_cost_per_kg = request.form.get('material_cost_per_kg', type=float) or 0
-        quote.machine_rate_per_hour = request.form.get('machine_rate_per_hour', type=float) or 45
-        quote.labour_rate_per_hour = request.form.get('labour_rate_per_hour', type=float) or 15
-        quote.setup_hours = request.form.get('setup_hours', type=float) or 2
-        quote.secondary_ops_cost = request.form.get('secondary_ops_cost', type=float) or 0
-        quote.overhead_percent = request.form.get('overhead_percent', type=float) or 20
-        quote.packaging_cost_per_part = request.form.get('packaging_cost_per_part', type=float) or 0
-        quote.target_margin_percent = request.form.get('target_margin_percent', type=float) or 30
-        quote.tooling_cost = request.form.get('tooling_cost', type=float) or 0
+        quote.material_cost_per_kg = get_float('material_cost_per_kg', 0)
+        quote.machine_rate_per_hour = get_float('machine_rate_per_hour', 45)
+        quote.labour_rate_per_hour = get_float('labour_rate_per_hour', 15)
+        quote.setup_hours = get_float('setup_hours', 2)
+        quote.secondary_ops_cost = get_float('secondary_ops_cost', 0)
+        quote.overhead_percent = get_float('overhead_percent', 20)
+        quote.packaging_cost_per_part = get_float('packaging_cost_per_part', 0)
+        quote.target_margin_percent = get_float('target_margin_percent', 30)
+        quote.tooling_cost = get_float('tooling_cost', 0)
         quote.tooling_amortization_qty = request.form.get('tooling_amortization_qty', type=float)
         quote.valid_until = datetime.strptime(request.form.get('valid_until'), '%Y-%m-%d').date() if request.form.get('valid_until') else None
         quote.notes = request.form.get('notes')

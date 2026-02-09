@@ -315,7 +315,9 @@ function calculateCosts() {
 
     // Selling price
     let sellPricePart = 0;
-    if (marginPercent < 100) {
+    if (marginPercent <= 0) {
+        sellPricePart = totalCostPart;
+    } else if (marginPercent < 100) {
         sellPricePart = totalCostPart / (1 - marginPercent / 100);
     } else {
         sellPricePart = totalCostPart * 2;

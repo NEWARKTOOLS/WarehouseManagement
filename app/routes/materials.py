@@ -130,9 +130,11 @@ def material_detail(material_id):
     material = Material.query.get_or_404(material_id)
     price_history = material.price_history.limit(20).all()
 
-    # Find items using this material
+    # Find items using this material (via the material's linked inventory item)
     from app.models.inventory import Item
-    items_using = Item.query.filter_by(linked_material_id=material_id, is_active=True).all()
+    items_using = []
+    if material.item_id:
+        items_using = Item.query.filter_by(material_id=material.item_id, is_active=True).all()
 
     return render_template('materials/detail.html',
                            material=material,

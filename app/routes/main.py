@@ -302,4 +302,4 @@ def uploaded_file(filename):
 @main_bp.route('/sw.js')
 def service_worker():
     """Service worker for PWA offline capability"""
-    return main_bp.send_static_file('js/sw.js')
+    return current_app.send_static_file('js/sw.js')

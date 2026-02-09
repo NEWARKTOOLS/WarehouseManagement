@@ -300,8 +300,10 @@ class Quote(db.Model):
         self.total_cost_per_part = direct_cost + self.overhead_cost_per_part
 
         # Selling price with margin
-        margin = self.target_margin_percent or 30
-        if margin < 100:
+        margin = self.target_margin_percent if self.target_margin_percent is not None else 30
+        if margin <= 0:
+            self.quoted_price_per_part = self.total_cost_per_part
+        elif margin < 100:
             self.quoted_price_per_part = self.total_cost_per_part / (1 - margin / 100)
         else:
             self.quoted_price_per_part = self.total_cost_per_part * 2
