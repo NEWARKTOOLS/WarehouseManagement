@@ -168,6 +168,7 @@
             <!-- Sidebar -->
             <div class="col-lg-4">
                 <!-- Pricing -->
+                {% if current_user.can_view_pricing() %}
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white">
                         <h5 class="mb-0"><i class="bi bi-currency-pound"></i> Pricing</h5>
@@ -196,6 +197,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Stock Levels -->
                 <div class="card border-0 shadow-sm mb-4">

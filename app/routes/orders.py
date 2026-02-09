@@ -483,7 +483,8 @@ def packing_list(order_id):
     """Generate packing list PDF"""
     order = SalesOrder.query.get_or_404(order_id)
 
-    pdf_buffer = generate_packing_list(order)
+    hide_prices = not current_user.can_view_pricing()
+    pdf_buffer = generate_packing_list(order, hide_prices=hide_prices)
 
     response = make_response(pdf_buffer.getvalue())
     response.headers['Content-Type'] = 'application/pdf'

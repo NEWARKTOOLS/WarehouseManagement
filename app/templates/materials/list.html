@@ -98,7 +98,7 @@
                         <th>Name / Grade</th>
                         <th>Type</th>
                         <th>Supplier</th>
-                        <th class="text-end">Cost/kg</th>
+                        {% if current_user.can_view_pricing() %}<th class="text-end">Cost/kg</th>{% endif %}
                         <th class="text-end">Stock (kg)</th>
                         <th>Status</th>
                         <th></th>
@@ -118,12 +118,14 @@
                         </td>
                         <td><span class="badge bg-secondary">{{ m.material_type }}</span></td>
                         <td>{{ m.supplier.name if m.supplier else '-' }}</td>
+                        {% if current_user.can_view_pricing() %}
                         <td class="text-end">
                             <strong>£{{ "%.2f"|format(m.cost_per_kg) }}</strong>
                             {% if m.last_price_update %}
                             <br><small class="text-muted">{{ m.last_price_update.strftime('%d/%m/%y') }}</small>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="text-end">
                             {{ "%.1f"|format(m.current_stock_kg or 0) }}
                             {% if m.min_stock_kg and m.current_stock_kg and m.current_stock_kg < m.min_stock_kg %}

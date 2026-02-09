@@ -39,12 +39,13 @@ def _load_image_safe(path, width, height):
     return None
 
 
-def generate_packing_list(order):
+def generate_packing_list(order, hide_prices=False):
     """
     Generate a professional packing list PDF for a sales order.
 
     Args:
         order: SalesOrder object
+        hide_prices: If True, always hide prices regardless of settings
 
     Returns:
         BytesIO buffer containing the PDF
@@ -296,7 +297,7 @@ def generate_packing_list(order):
     story.append(Paragraph('<b>ITEMS</b>', style_section))
     story.append(Spacer(1, 4))
 
-    show_prices = getattr(settings, 'packing_list_show_prices', False)
+    show_prices = getattr(settings, 'packing_list_show_prices', False) and not hide_prices
 
     # Unicode ballot box for the checkbox column
     tick_box = '\u2610'  # empty checkbox character

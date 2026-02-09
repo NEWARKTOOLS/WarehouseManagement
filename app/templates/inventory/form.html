@@ -196,6 +196,7 @@
                 </div>
 
                 <!-- Material & Costing -->
+                {% if current_user.can_view_pricing() %}
                 <div class="card mb-3">
                     <div class="card-header bg-success bg-opacity-10">
                         <i class="bi bi-currency-pound me-2"></i>Material & Costing
@@ -284,10 +285,12 @@
                     </div>
                 </div>
                 {% endif %}
+                {% endif %}
             </div>
 
             <div class="col-lg-4">
                 <!-- Pricing -->
+                {% if current_user.can_view_pricing() %}
                 <div class="card mb-3">
                     <div class="card-header">Pricing</div>
                     <div class="card-body">
@@ -301,6 +304,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Image -->
                 <div class="card mb-3">

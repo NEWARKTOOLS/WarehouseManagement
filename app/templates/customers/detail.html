@@ -78,8 +78,8 @@
                                 <span class="status-badge status-{{ order.status }}">{{ order.status|replace('_', ' ')|title }}</span>
                             </div>
                             <small class="text-muted">
-                                {{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '' }} |
-                                &pound;{{ "{:,.2f}".format(order.total) }}
+                                {{ order.order_date.strftime('%d/%m/%Y') if order.order_date else '' }}
+                                {% if current_user.can_view_pricing() %} | &pound;{{ "{:,.2f}".format(order.total) }}{% endif %}
                             </small>
                         </a>
                         {% endfor %}
@@ -115,10 +115,12 @@
                             <th>Phone</th>
                             <td>{{ customer.phone or '-' }}</td>
                         </tr>
+                        {% if current_user.can_view_pricing() %}
                         <tr>
                             <th>Terms</th>
                             <td>{{ customer.credit_terms }} days</td>
                         </tr>
+                        {% endif %}
                     </table>
                 </div>
             </div>

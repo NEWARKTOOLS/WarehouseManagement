@@ -32,7 +32,7 @@
                         <th>Colour</th>
                         <th>Type</th>
                         <th>Supplier</th>
-                        <th class="text-end">Cost/kg</th>
+                        {% if current_user.can_view_pricing() %}<th class="text-end">Cost/kg</th>{% endif %}
                         <th class="text-center">Typical %</th>
                         <th></th>
                     </tr>
@@ -50,7 +50,7 @@
                         </td>
                         <td><span class="badge bg-secondary">{{ mb.masterbatch_type }}</span></td>
                         <td>{{ mb.supplier.name if mb.supplier else '-' }}</td>
-                        <td class="text-end">£{{ "%.2f"|format(mb.cost_per_kg) }}</td>
+                        {% if current_user.can_view_pricing() %}<td class="text-end">£{{ "%.2f"|format(mb.cost_per_kg) }}</td>{% endif %}
                         <td class="text-center">{{ mb.typical_loading_percent or '-' }}%</td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">

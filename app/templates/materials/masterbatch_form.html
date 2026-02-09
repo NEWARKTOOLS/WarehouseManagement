@@ -93,6 +93,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
+                            {% if current_user.can_view_pricing() %}
                             <div class="col-md-4">
                                 <label class="form-label">Cost per kg (£) <span class="text-danger">*</span></label>
                                 <div class="input-group">
@@ -102,6 +103,7 @@
                                            placeholder="0.00">
                                 </div>
                             </div>
+                            {% endif %}
                             <div class="col-md-4">
                                 <label class="form-label">Typical Loading (%)</label>
                                 <div class="input-group">

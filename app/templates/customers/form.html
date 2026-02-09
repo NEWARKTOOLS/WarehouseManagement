@@ -80,6 +80,7 @@
 
             <div class="col-lg-4">
                 <!-- Business Settings -->
+                {% if current_user.can_view_pricing() %}
                 <div class="card mb-3">
                     <div class="card-header">Business Settings</div>
                     <div class="card-body">
@@ -97,6 +98,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Actions -->
                 <div class="card">

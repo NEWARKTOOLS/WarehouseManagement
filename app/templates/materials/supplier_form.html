@@ -157,7 +157,7 @@
                     {% for m in supplier.materials %}
                     <a href="{{ url_for('materials.material_detail', material_id=m.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between">
                         <span>{{ m.code }} - {{ m.name }}</span>
-                        <span class="text-muted">£{{ "%.2f"|format(m.cost_per_kg) }}/kg</span>
+                        {% if current_user.can_view_pricing() %}<span class="text-muted">£{{ "%.2f"|format(m.cost_per_kg) }}/kg</span>{% endif %}
                     </a>
                     {% endfor %}
                 </div>
