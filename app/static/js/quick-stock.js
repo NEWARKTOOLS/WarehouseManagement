@@ -2,10 +2,10 @@
  * Quick Stock - Barcode scanning workflow for fast stock receipt
  * Flow: Scan Location → Scan Item (with auto qty) → Confirm & Add
  *
- * Scanner strategy:
- * 1. Native BarcodeDetector API (iOS 16.4+, Chrome 83+) - supports QR + barcodes
- * 2. QuaggaJS fallback for older browsers - barcodes only (no QR)
- * 3. Manual entry fallback always available
+ * Uses html5-qrcode library (ZXing-based) which reliably handles:
+ * - QR codes on iOS Safari
+ * - CODE128, EAN, UPC barcodes
+ * - Camera permissions on all platforms
  */
 (function() {
     'use strict';
@@ -19,12 +19,11 @@
     let lastScannedCode = '';
     let lastScanTime = 0;
 
-    // Scanner state
-    let cameraStream = null;
-    let scanInterval = null;
-    let quaggaRunning = false;
+    // Scanner instance
+    let html5QrScanner = null;
+    let currentScannerId = null;
 
-    // DOM elements (populated on init)
+    // DOM elements
     let modal, steps;
 
     function init() {
@@ -37,29 +36,33 @@
             3: document.getElementById('qs-step3')
         };
 
-        // Bind events
         document.getElementById('qs-close')?.addEventListener('click', closeModal);
         document.getElementById('qs-manual-location')?.addEventListener('click', showLocationDropdown);
         document.getElementById('qs-manual-item')?.addEventListener('click', showItemSearch);
         document.getElementById('qs-change-location')?.addEventListener('click', () => goToStep(1));
         document.getElementById('qs-add-stock')?.addEventListener('click', addStock);
         document.getElementById('qs-add-more')?.addEventListener('click', addAndContinue);
-
-        // Multiplier calculation
         document.getElementById('qs-multiplier')?.addEventListener('input', updateTotal);
         document.getElementById('qs-qty-per-unit')?.addEventListener('input', updateTotal);
 
-        // Manual location select
         document.getElementById('qs-location-select')?.addEventListener('change', function() {
-            if (this.value) {
-                selectLocationById(this.value);
-            }
+            if (this.value) selectLocationById(this.value);
         });
 
-        // Manual item search
         document.getElementById('qs-item-search')?.addEventListener('input', debounce(searchItems, 300));
 
-        // Listen for modal show/hide
+        // Manual barcode entry (location - step 1)
+        document.getElementById('qs-manual-barcode-btn')?.addEventListener('click', submitManualBarcode);
+        document.getElementById('qs-manual-barcode')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') submitManualBarcode();
+        });
+
+        // Manual barcode entry (item - step 2)
+        document.getElementById('qs-manual-barcode-item-btn')?.addEventListener('click', submitManualBarcodeItem);
+        document.getElementById('qs-manual-barcode-item')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') submitManualBarcodeItem();
+        });
+
         modal.addEventListener('shown.bs.modal', onModalShown);
         modal.addEventListener('hidden.bs.modal', onModalHidden);
     }
@@ -97,13 +100,9 @@
         currentStep = step;
         stopScanner();
 
-        // Hide all steps
         Object.values(steps).forEach(s => { if (s) s.style.display = 'none'; });
-
-        // Show current step
         if (steps[step]) steps[step].style.display = '';
 
-        // Update step indicators
         document.querySelectorAll('.qs-step-indicator').forEach(el => {
             const s = parseInt(el.dataset.step);
             el.classList.remove('active', 'completed');
@@ -111,13 +110,12 @@
             if (s < step) el.classList.add('completed');
         });
 
-        // Start scanner for the current step
         if (step === 1) {
-            setTimeout(() => startScanner('qs-scanner-1'), 300);
+            setTimeout(() => startScanner('qs-scanner-1'), 400);
             hideEl('qs-location-dropdown');
         }
         if (step === 2) {
-            setTimeout(() => startScanner('qs-scanner-2'), 300);
+            setTimeout(() => startScanner('qs-scanner-2'), 400);
             hideEl('qs-item-search-area');
             updateLocationDisplay();
         }
@@ -126,129 +124,78 @@
         }
     }
 
-    // ===== Camera & Scanner =====
-
-    // Shared canvas for frame capture (more reliable than passing video directly)
-    let scanCanvas = null;
-    let scanCtx = null;
-    let scanCount = 0;
-    let currentStatusEl = null;
-
-    function checkCameraSupport() {
-        if (!window.isSecureContext) {
-            return { ok: false, reason: 'Camera requires HTTPS. Please use a secure connection.' };
-        }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            return { ok: false, reason: 'Camera not available on this device/browser.' };
-        }
-        return { ok: true };
-    }
+    // ===== Scanner using html5-qrcode =====
 
     async function startScanner(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        const check = checkCameraSupport();
-        if (!check.ok) {
+        if (typeof Html5Qrcode === 'undefined') {
             container.innerHTML = `<div class="text-center text-muted p-4">
                 <i class="bi bi-camera-video-off fs-1 d-block mb-2"></i>
-                ${check.reason}<br><small>Use manual entry below</small>
+                Scanner library not loaded<br><small>Use manual entry below</small>
             </div>`;
             return;
         }
 
-        // Create video element with iOS-required attributes
-        container.innerHTML = `
-            <div style="position:relative;overflow:hidden;border-radius:8px;background:#000;">
-                <video id="qs-video-${containerId}" playsinline autoplay muted
-                       style="width:100%;height:250px;object-fit:cover;display:block;"></video>
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                     width:70%;height:60%;border:2px solid rgba(0,200,0,0.7);border-radius:8px;pointer-events:none;">
-                    <div style="position:absolute;top:-1px;left:-1px;width:20px;height:20px;border-top:3px solid #0f0;border-left:3px solid #0f0;"></div>
-                    <div style="position:absolute;top:-1px;right:-1px;width:20px;height:20px;border-top:3px solid #0f0;border-right:3px solid #0f0;"></div>
-                    <div style="position:absolute;bottom:-1px;left:-1px;width:20px;height:20px;border-bottom:3px solid #0f0;border-left:3px solid #0f0;"></div>
-                    <div style="position:absolute;bottom:-1px;right:-1px;width:20px;height:20px;border-bottom:3px solid #0f0;border-right:3px solid #0f0;"></div>
-                </div>
-            </div>
-            <div id="qs-status-${containerId}" class="text-center mt-2 small text-muted">Starting camera...</div>
-        `;
+        if (!window.isSecureContext) {
+            container.innerHTML = `<div class="text-center text-muted p-4">
+                <i class="bi bi-camera-video-off fs-1 d-block mb-2"></i>
+                Camera requires HTTPS<br><small>Use manual entry below</small>
+            </div>`;
+            return;
+        }
 
-        const video = document.getElementById(`qs-video-${containerId}`);
-        currentStatusEl = document.getElementById(`qs-status-${containerId}`);
+        // Create a unique reader div inside the container
+        const readerId = `qs-reader-${containerId}`;
+        container.innerHTML = `<div id="${readerId}" style="width:100%;border-radius:8px;overflow:hidden;"></div>
+            <div id="qs-status-${containerId}" class="text-center mt-2 small text-muted">Starting camera...</div>`;
+
+        currentScannerId = readerId;
 
         try {
-            // Request camera - iOS needs these specific constraints
-            cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+            html5QrScanner = new Html5Qrcode(readerId);
+
+            const config = {
+                fps: 10,
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    const minDim = Math.min(viewfinderWidth, viewfinderHeight);
+                    return { width: Math.floor(minDim * 0.8), height: Math.floor(minDim * 0.6) };
                 },
-                audio: false
-            });
+                aspectRatio: 1.333,
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ]
+            };
 
-            video.srcObject = cameraStream;
+            await html5QrScanner.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanFailure
+            );
 
-            // Wait for video to be actually playing (critical on iOS)
-            await new Promise((resolve, reject) => {
-                video.onloadedmetadata = () => {
-                    video.play().then(resolve).catch(reject);
-                };
-                // Timeout after 5 seconds
-                setTimeout(() => reject(new Error('Video load timeout')), 5000);
-            });
-
-            // Create shared canvas for frame capture
-            scanCanvas = document.createElement('canvas');
-            scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
-            scanCount = 0;
-
-            // Check which scanner to use
-            let scannerMethod = 'none';
-
-            // Try native BarcodeDetector
-            if (typeof BarcodeDetector !== 'undefined') {
-                try {
-                    const formats = await BarcodeDetector.getSupportedFormats();
-                    if (formats && formats.length > 0) {
-                        scannerMethod = 'native';
-                        const useFormats = ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
-                            .filter(f => formats.includes(f));
-                        if (useFormats.length > 0) {
-                            currentStatusEl.innerHTML = `Scanning (${useFormats.includes('qr_code') ? 'QR + barcodes' : 'barcodes'})... <span id="qs-scan-count">0</span> frames`;
-                            startNativeScanner(video, useFormats);
-                        } else {
-                            scannerMethod = 'none';
-                        }
-                    }
-                } catch (e) {
-                    console.log('BarcodeDetector check failed:', e);
-                    scannerMethod = 'none';
-                }
-            }
-
-            // Fall back to QuaggaJS
-            if (scannerMethod === 'none' && typeof Quagga !== 'undefined') {
-                scannerMethod = 'quagga';
-                currentStatusEl.innerHTML = 'Scanning barcodes... <span id="qs-scan-count">0</span> frames';
-                startQuaggaOnStream(video);
-            }
-
-            if (scannerMethod === 'none') {
-                currentStatusEl.textContent = 'Camera active but no scanner available. Use manual entry.';
-            }
+            const statusEl = document.getElementById(`qs-status-${containerId}`);
+            if (statusEl) statusEl.textContent = 'Scanning for QR codes & barcodes...';
 
         } catch (err) {
-            console.error('Camera error:', err);
+            console.error('Scanner start error:', err);
+            const statusEl = document.getElementById(`qs-status-${containerId}`);
             let msg = 'Camera not available';
-            if (err.name === 'NotAllowedError') {
-                msg = 'Camera permission denied. Please allow camera access in Settings > Safari > Camera.';
-            } else if (err.name === 'NotFoundError') {
-                msg = 'No camera found on this device.';
-            } else if (err.name === 'NotReadableError' || err.name === 'AbortError') {
-                msg = 'Camera is in use by another app. Close other camera apps and try again.';
-            } else if (err.message === 'Video load timeout') {
-                msg = 'Camera took too long to start. Please try again.';
+            if (typeof err === 'string') {
+                if (err.includes('NotAllowedError') || err.includes('Permission')) {
+                    msg = 'Camera permission denied. Check Settings > Safari > Camera.';
+                } else if (err.includes('NotFoundError')) {
+                    msg = 'No camera found.';
+                } else {
+                    msg = err;
+                }
             }
             container.innerHTML = `<div class="text-center text-muted p-4">
                 <i class="bi bi-camera-video-off fs-1 d-block mb-2"></i>
@@ -257,135 +204,55 @@
         }
     }
 
-    function captureFrame(video) {
-        // Capture current video frame to canvas (more reliable than passing video element)
-        if (!scanCanvas || !scanCtx) return null;
-        const w = video.videoWidth;
-        const h = video.videoHeight;
-        if (!w || !h) return null;
-        scanCanvas.width = w;
-        scanCanvas.height = h;
-        scanCtx.drawImage(video, 0, 0, w, h);
-        return scanCanvas;
-    }
-
-    function updateScanCount() {
-        scanCount++;
-        const el = document.getElementById('qs-scan-count');
-        if (el) el.textContent = scanCount;
-    }
-
-    function startNativeScanner(video, formats) {
-        const detector = new BarcodeDetector({ formats: formats });
-
-        // Use requestAnimationFrame for smoother scanning
-        let scanning = true;
-
-        async function scanFrame() {
-            if (!scanning || !cameraStream) return;
-
-            if (video.readyState >= 2) {
-                updateScanCount();
-                try {
-                    // Capture to canvas first, then detect from canvas
-                    // This is more reliable on iOS than detecting directly from video
-                    const canvas = captureFrame(video);
-                    if (canvas) {
-                        const barcodes = await detector.detect(canvas);
-                        if (barcodes.length > 0) {
-                            const code = barcodes[0].rawValue;
-                            if (code) {
-                                handleDetectedCode(code);
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Silently continue
-                }
-            }
-
-            // Schedule next scan ~250ms later
-            scanInterval = setTimeout(() => {
-                requestAnimationFrame(scanFrame);
-            }, 250);
-        }
-
-        requestAnimationFrame(scanFrame);
-    }
-
-    function startQuaggaOnStream(video) {
-        scanInterval = setInterval(() => {
-            if (video.readyState < 2) return;
-
-            updateScanCount();
-            const canvas = captureFrame(video);
-            if (!canvas) return;
-
-            try {
-                Quagga.decodeSingle({
-                    src: canvas.toDataURL('image/jpeg', 0.8),
-                    numOfWorkers: 0,
-                    decoder: {
-                        readers: [
-                            "code_128_reader",
-                            "ean_reader",
-                            "ean_8_reader",
-                            "code_39_reader",
-                            "upc_reader",
-                            "upc_e_reader"
-                        ]
-                    },
-                    locate: true
-                }, function(result) {
-                    if (result && result.codeResult) {
-                        handleDetectedCode(result.codeResult.code);
-                    }
-                });
-            } catch (e) {
-                // Ignore decode errors
-            }
-        }, 500);
-    }
-
-    function handleDetectedCode(code) {
-        if (!code) return;
+    function onScanSuccess(decodedText, decodedResult) {
         const now = Date.now();
-
         // Debounce: ignore same code within 3 seconds
-        if (code === lastScannedCode && (now - lastScanTime) < 3000) return;
-        lastScannedCode = code;
+        if (decodedText === lastScannedCode && (now - lastScanTime) < 3000) return;
+        lastScannedCode = decodedText;
         lastScanTime = now;
 
-        // Vibrate on scan
         if (navigator.vibrate) navigator.vibrate(100);
+        processScannedCode(decodedText);
+    }
 
+    function onScanFailure(error) {
+        // Ignore - this fires on every frame without a detection
+    }
+
+    function submitManualBarcode() {
+        const input = document.getElementById('qs-manual-barcode');
+        if (!input) return;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = '';
         processScannedCode(code);
     }
 
-    function stopScanner() {
-        // Stop scan interval/timeout
-        if (scanInterval) {
-            clearInterval(scanInterval);
-            clearTimeout(scanInterval);
-            scanInterval = null;
-        }
+    function submitManualBarcodeItem() {
+        const input = document.getElementById('qs-manual-barcode-item');
+        if (!input) return;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = '';
+        processScannedCode(code);
+    }
 
-        // Stop camera stream
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-            cameraStream = null;
+    async function stopScanner() {
+        if (html5QrScanner) {
+            try {
+                const state = html5QrScanner.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    await html5QrScanner.stop();
+                }
+            } catch (e) {
+                // May already be stopped
+            }
+            try {
+                html5QrScanner.clear();
+            } catch (e) {}
+            html5QrScanner = null;
         }
-
-        // Clean up canvas
-        scanCanvas = null;
-        scanCtx = null;
-        scanCount = 0;
-
-        // Stop QuaggaJS if it was running in live mode
-        if (quaggaRunning && typeof Quagga !== 'undefined') {
-            try { Quagga.stop(); } catch(e) {}
-            quaggaRunning = false;
-        }
+        currentScannerId = null;
     }
 
     // ===== Process scanned code =====
@@ -445,9 +312,7 @@
                 };
                 goToStep(2);
             })
-            .catch(err => {
-                showToast('Failed to load location', 'error');
-            });
+            .catch(() => showToast('Failed to load location', 'error'));
     }
 
     function showLocationDropdown() {
@@ -495,16 +360,10 @@
 
         fetch('/api/scan', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ barcode: query, context: 'receive' })
         })
-        .then(r => {
-            if (!r.ok) return { error: true };
-            return r.json();
-        })
+        .then(r => { if (!r.ok) return { error: true }; return r.json(); })
         .then(data => {
             if (data.error) {
                 results.innerHTML = '<div class="text-muted p-2">No items found. Try a different search.</div>';
@@ -519,18 +378,14 @@
                 results.appendChild(btn);
             }
         })
-        .catch(() => {
-            results.innerHTML = '<div class="text-muted p-2">Search failed. Try again.</div>';
-        });
+        .catch(() => { results.innerHTML = '<div class="text-muted p-2">Search failed.</div>'; });
     }
 
     // ===== Display updates =====
     function updateLocationDisplay() {
         if (!selectedLocation) return;
         const el = document.getElementById('qs-selected-location');
-        if (el) {
-            el.innerHTML = `<i class="bi bi-geo-alt me-1"></i> <strong>${selectedLocation.code}</strong> - ${selectedLocation.name || ''}`;
-        }
+        if (el) el.innerHTML = `<i class="bi bi-geo-alt me-1"></i> <strong>${selectedLocation.code}</strong> - ${selectedLocation.name || ''}`;
     }
 
     function updateConfirmDisplay() {
@@ -552,7 +407,6 @@
             qtyInput.focus();
             document.getElementById('qs-qty-source').style.display = 'none';
         }
-
         multiplierInput.value = 1;
         updateTotal();
     }
@@ -561,10 +415,9 @@
         const qty = parseInt(document.getElementById('qs-qty-per-unit')?.value) || 0;
         const mult = parseInt(document.getElementById('qs-multiplier')?.value) || 1;
         const total = qty * mult;
-        const unit = selectedItem?.unit || 'parts';
 
         document.getElementById('qs-total-qty').textContent = total.toLocaleString();
-        document.getElementById('qs-total-unit').textContent = unit;
+        document.getElementById('qs-total-unit').textContent = selectedItem?.unit || 'parts';
 
         const addBtn = document.getElementById('qs-add-stock');
         const addMoreBtn = document.getElementById('qs-add-more');
@@ -573,13 +426,8 @@
     }
 
     // ===== Add stock =====
-    function addStock() {
-        doAddStock(false);
-    }
-
-    function addAndContinue() {
-        doAddStock(true);
-    }
+    function addStock() { doAddStock(false); }
+    function addAndContinue() { doAddStock(true); }
 
     function doAddStock(continueScanning) {
         const qty = parseInt(document.getElementById('qs-qty-per-unit')?.value) || 0;
@@ -593,7 +441,6 @@
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.content : '';
-
         const addBtn = document.getElementById('qs-add-stock');
         const addMoreBtn = document.getElementById('qs-add-more');
         if (addBtn) addBtn.disabled = true;
@@ -601,29 +448,18 @@
 
         fetch('/api/quick-receive', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                item_id: selectedItem.id,
-                location_id: selectedLocation.id,
-                quantity: total
-            })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ item_id: selectedItem.id, location_id: selectedLocation.id, quantity: total })
         })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
                 sessionHistory.unshift({
-                    sku: selectedItem.sku,
-                    name: selectedItem.name,
-                    qty: total,
-                    unit: selectedItem.unit,
-                    location: selectedLocation.code,
-                    time: new Date().toLocaleTimeString()
+                    sku: selectedItem.sku, name: selectedItem.name,
+                    qty: total, unit: selectedItem.unit,
+                    location: selectedLocation.code, time: new Date().toLocaleTimeString()
                 });
                 updateHistoryDisplay();
-
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 showToast(data.message, 'success');
 
@@ -640,51 +476,39 @@
                 if (addMoreBtn) addMoreBtn.disabled = false;
             }
         })
-        .catch(err => {
+        .catch(() => {
             showToast('Network error. Try again.', 'error');
             if (addBtn) addBtn.disabled = false;
             if (addMoreBtn) addMoreBtn.disabled = false;
         });
     }
 
-    // ===== History display =====
+    // ===== History =====
     function updateHistoryDisplay() {
         const container = document.getElementById('qs-history');
         if (!container) return;
-
-        if (sessionHistory.length === 0) {
-            container.style.display = 'none';
-            return;
-        }
+        if (sessionHistory.length === 0) { container.style.display = 'none'; return; }
 
         container.style.display = '';
         const list = document.getElementById('qs-history-list');
         list.innerHTML = '';
-
         sessionHistory.slice(0, 10).forEach(entry => {
             const li = document.createElement('li');
             li.className = 'list-group-item py-1 px-2 d-flex justify-content-between align-items-center';
-            li.innerHTML = `
-                <span><strong>${entry.sku}</strong> <small class="text-muted">${entry.name}</small></span>
-                <span>
-                    <span class="badge bg-success">${entry.qty.toLocaleString()} ${entry.unit}</span>
-                    <small class="text-muted ms-1">${entry.location}</small>
-                </span>
-            `;
+            li.innerHTML = `<span><strong>${entry.sku}</strong> <small class="text-muted">${entry.name}</small></span>
+                <span><span class="badge bg-success">${entry.qty.toLocaleString()} ${entry.unit}</span>
+                <small class="text-muted ms-1">${entry.location}</small></span>`;
             list.appendChild(li);
         });
     }
 
     // ===== Helpers =====
-    function hideEl(id) {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    }
+    function hideEl(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 
     function showToast(message, type) {
         const toast = document.createElement('div');
         toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible position-fixed`;
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 99999; min-width: 300px; max-width: 90vw; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 99999; min-width: 280px; max-width: 90vw; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
         toast.innerHTML = `${message}<button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>`;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 4000);
@@ -692,18 +516,9 @@
 
     function debounce(fn, delay) {
         let timer;
-        return function(e) {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(e), delay);
-        };
+        return function(e) { clearTimeout(timer); timer = setTimeout(() => fn(e), delay); };
     }
 
-    // Expose globally
-    window.QuickStock = {
-        open: openModal,
-        init: init
-    };
-
-    // Init on DOM ready
+    window.QuickStock = { open: openModal, init: init };
     document.addEventListener('DOMContentLoaded', init);
 })();
