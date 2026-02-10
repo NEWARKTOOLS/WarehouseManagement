@@ -719,7 +719,7 @@ def import_item(row, result):
         existing.min_stock_level = _safe_float(_get(row, 'min_stock_level')) or existing.min_stock_level
         existing.unit_cost = _safe_float(_get(row, 'unit_cost')) or existing.unit_cost
         existing.selling_price = _safe_float(_get(row, 'selling_price')) or existing.selling_price
-        existing.notes = _get(row, 'notes') or existing.notes
+        existing.description = _get(row, 'notes', 'description') or existing.description
         # Handle masterbatch_ratio as string
         mb_ratio = _get(row, 'masterbatch_ratio')
         if mb_ratio:
@@ -729,7 +729,7 @@ def import_item(row, result):
         item = Item(
             sku=sku,
             name=name,
-            description=_get(row, 'description') or None,
+            description=_get(row, 'description', 'notes') or None,
             item_type=_get(row, 'item_type') or 'finished_goods',
             customer_id=customer_id,
             unit_of_measure=_get(row, 'unit_of_measure') or 'parts',
@@ -743,7 +743,6 @@ def import_item(row, result):
             min_stock_level=_safe_float(_get(row, 'min_stock_level'), 0),
             unit_cost=_safe_float(_get(row, 'unit_cost'), 0),
             selling_price=_safe_float(_get(row, 'selling_price'), 0),
-            notes=_get(row, 'notes') or None,
             barcode=sku,
             masterbatch_ratio=_get(row, 'masterbatch_ratio') or None
         )
@@ -816,7 +815,7 @@ def _write_export_rows(writer, data_type):
         for i in Item.query.filter_by(is_active=True).order_by(Item.sku).all():
             customer_code = i.customer.customer_code if i.customer else ''
             mould_number = i.default_mould.mould_number if i.default_mould else ''
-            writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, '', '', i.masterbatch_ratio, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.notes])
+            writer.writerow([i.sku, i.name, i.description, i.item_type, customer_code, i.unit_of_measure, i.part_weight_grams, i.runner_weight_grams, i.cavities, i.cycle_time_seconds, '', '', i.masterbatch_ratio, i.material_cost_per_kg, mould_number, i.color, i.min_stock_level, i.unit_cost, i.selling_price, i.description])
 
     elif data_type == 'categories':
         for c in Category.query.order_by(Category.name).all():
