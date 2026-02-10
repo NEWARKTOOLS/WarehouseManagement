@@ -128,6 +128,12 @@
 
     // ===== Camera & Scanner =====
 
+    // Shared canvas for frame capture (more reliable than passing video directly)
+    let scanCanvas = null;
+    let scanCtx = null;
+    let scanCount = 0;
+    let currentStatusEl = null;
+
     function checkCameraSupport() {
         if (!window.isSecureContext) {
             return { ok: false, reason: 'Camera requires HTTPS. Please use a secure connection.' };
@@ -136,10 +142,6 @@
             return { ok: false, reason: 'Camera not available on this device/browser.' };
         }
         return { ok: true };
-    }
-
-    function hasBarcodeDetector() {
-        return typeof BarcodeDetector !== 'undefined';
     }
 
     async function startScanner(containerId) {
@@ -168,17 +170,17 @@
                     <div style="position:absolute;bottom:-1px;right:-1px;width:20px;height:20px;border-bottom:3px solid #0f0;border-right:3px solid #0f0;"></div>
                 </div>
             </div>
-            <div id="qs-status-${containerId}" class="text-center mt-2 small text-muted"></div>
+            <div id="qs-status-${containerId}" class="text-center mt-2 small text-muted">Starting camera...</div>
         `;
 
         const video = document.getElementById(`qs-video-${containerId}`);
-        const statusEl = document.getElementById(`qs-status-${containerId}`);
+        currentStatusEl = document.getElementById(`qs-status-${containerId}`);
 
         try {
             // Request camera - iOS needs these specific constraints
             cameraStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: 'environment',
+                    facingMode: { ideal: 'environment' },
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
@@ -186,30 +188,67 @@
             });
 
             video.srcObject = cameraStream;
-            await video.play();
 
-            // Try native BarcodeDetector first (supports QR codes on iOS 16.4+)
-            if (hasBarcodeDetector()) {
-                statusEl.textContent = 'Camera active - scanning for QR codes & barcodes...';
-                startNativeScanner(video);
+            // Wait for video to be actually playing (critical on iOS)
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    video.play().then(resolve).catch(reject);
+                };
+                // Timeout after 5 seconds
+                setTimeout(() => reject(new Error('Video load timeout')), 5000);
+            });
+
+            // Create shared canvas for frame capture
+            scanCanvas = document.createElement('canvas');
+            scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+            scanCount = 0;
+
+            // Check which scanner to use
+            let scannerMethod = 'none';
+
+            // Try native BarcodeDetector
+            if (typeof BarcodeDetector !== 'undefined') {
+                try {
+                    const formats = await BarcodeDetector.getSupportedFormats();
+                    if (formats && formats.length > 0) {
+                        scannerMethod = 'native';
+                        const useFormats = ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
+                            .filter(f => formats.includes(f));
+                        if (useFormats.length > 0) {
+                            currentStatusEl.innerHTML = `Scanning (${useFormats.includes('qr_code') ? 'QR + barcodes' : 'barcodes'})... <span id="qs-scan-count">0</span> frames`;
+                            startNativeScanner(video, useFormats);
+                        } else {
+                            scannerMethod = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.log('BarcodeDetector check failed:', e);
+                    scannerMethod = 'none';
+                }
             }
-            // Fall back to QuaggaJS for barcode-only scanning
-            else if (typeof Quagga !== 'undefined') {
-                statusEl.textContent = 'Camera active - scanning for barcodes...';
-                startQuaggaOnStream(video, containerId);
-            } else {
-                statusEl.textContent = 'Camera active but no barcode library available. Use manual entry.';
+
+            // Fall back to QuaggaJS
+            if (scannerMethod === 'none' && typeof Quagga !== 'undefined') {
+                scannerMethod = 'quagga';
+                currentStatusEl.innerHTML = 'Scanning barcodes... <span id="qs-scan-count">0</span> frames';
+                startQuaggaOnStream(video);
+            }
+
+            if (scannerMethod === 'none') {
+                currentStatusEl.textContent = 'Camera active but no scanner available. Use manual entry.';
             }
 
         } catch (err) {
             console.error('Camera error:', err);
             let msg = 'Camera not available';
             if (err.name === 'NotAllowedError') {
-                msg = 'Camera permission denied. Please allow camera access in your device settings.';
+                msg = 'Camera permission denied. Please allow camera access in Settings > Safari > Camera.';
             } else if (err.name === 'NotFoundError') {
                 msg = 'No camera found on this device.';
             } else if (err.name === 'NotReadableError' || err.name === 'AbortError') {
                 msg = 'Camera is in use by another app. Close other camera apps and try again.';
+            } else if (err.message === 'Video load timeout') {
+                msg = 'Camera took too long to start. Please try again.';
             }
             container.innerHTML = `<div class="text-center text-muted p-4">
                 <i class="bi bi-camera-video-off fs-1 d-block mb-2"></i>
@@ -218,39 +257,69 @@
         }
     }
 
-    function startNativeScanner(video) {
-        // Use BarcodeDetector API - works on iOS Safari 16.4+ and Chrome 83+
-        const detector = new BarcodeDetector({
-            formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
-        });
-
-        scanInterval = setInterval(async () => {
-            if (video.readyState < 2) return; // Not ready yet
-
-            try {
-                const barcodes = await detector.detect(video);
-                if (barcodes.length > 0) {
-                    const code = barcodes[0].rawValue;
-                    handleDetectedCode(code);
-                }
-            } catch (e) {
-                // Detection can fail on some frames, just continue
-            }
-        }, 200); // Scan every 200ms
+    function captureFrame(video) {
+        // Capture current video frame to canvas (more reliable than passing video element)
+        if (!scanCanvas || !scanCtx) return null;
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) return null;
+        scanCanvas.width = w;
+        scanCanvas.height = h;
+        scanCtx.drawImage(video, 0, 0, w, h);
+        return scanCanvas;
     }
 
-    function startQuaggaOnStream(video, containerId) {
-        // QuaggaJS fromSource approach - use our existing video stream
-        // Since we already have the stream, use canvas-based detection
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+    function updateScanCount() {
+        scanCount++;
+        const el = document.getElementById('qs-scan-count');
+        if (el) el.textContent = scanCount;
+    }
 
+    function startNativeScanner(video, formats) {
+        const detector = new BarcodeDetector({ formats: formats });
+
+        // Use requestAnimationFrame for smoother scanning
+        let scanning = true;
+
+        async function scanFrame() {
+            if (!scanning || !cameraStream) return;
+
+            if (video.readyState >= 2) {
+                updateScanCount();
+                try {
+                    // Capture to canvas first, then detect from canvas
+                    // This is more reliable on iOS than detecting directly from video
+                    const canvas = captureFrame(video);
+                    if (canvas) {
+                        const barcodes = await detector.detect(canvas);
+                        if (barcodes.length > 0) {
+                            const code = barcodes[0].rawValue;
+                            if (code) {
+                                handleDetectedCode(code);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Silently continue
+                }
+            }
+
+            // Schedule next scan ~250ms later
+            scanInterval = setTimeout(() => {
+                requestAnimationFrame(scanFrame);
+            }, 250);
+        }
+
+        requestAnimationFrame(scanFrame);
+    }
+
+    function startQuaggaOnStream(video) {
         scanInterval = setInterval(() => {
             if (video.readyState < 2) return;
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
+            updateScanCount();
+            const canvas = captureFrame(video);
+            if (!canvas) return;
 
             try {
                 Quagga.decodeSingle({
@@ -275,7 +344,7 @@
             } catch (e) {
                 // Ignore decode errors
             }
-        }, 500); // Scan every 500ms (QuaggaJS decodeSingle is slower)
+        }, 500);
     }
 
     function handleDetectedCode(code) {
@@ -294,9 +363,10 @@
     }
 
     function stopScanner() {
-        // Stop scan interval
+        // Stop scan interval/timeout
         if (scanInterval) {
             clearInterval(scanInterval);
+            clearTimeout(scanInterval);
             scanInterval = null;
         }
 
@@ -305,6 +375,11 @@
             cameraStream.getTracks().forEach(track => track.stop());
             cameraStream = null;
         }
+
+        // Clean up canvas
+        scanCanvas = null;
+        scanCtx = null;
+        scanCount = 0;
 
         // Stop QuaggaJS if it was running in live mode
         if (quaggaRunning && typeof Quagga !== 'undefined') {
