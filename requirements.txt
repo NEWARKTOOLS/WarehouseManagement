@@ -11,8 +11,9 @@ SQLAlchemy==2.0.23
 # PDF Generation
 reportlab==4.0.8
 
-# Barcode Generation
+# Barcode & QR Code Generation
 python-barcode==0.15.1
+qrcode[pil]==7.4.2
 Pillow==10.1.0
 
 # Date handling

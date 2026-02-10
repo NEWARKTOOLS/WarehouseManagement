@@ -1,6 +1,9 @@
 import os
+import base64
+from io import BytesIO
 import barcode
 from barcode.writer import ImageWriter
+import qrcode
 
 
 def generate_barcode(code, output_folder, barcode_type='code128'):
@@ -107,4 +110,39 @@ def get_barcode_data_url(code, barcode_type='code128'):
 
     except Exception as e:
         print(f"Error generating data URL barcode for {code}: {e}")
+        return None
+
+
+def get_qr_data_url(code, box_size=10, border=2):
+    """
+    Generate a QR code as base64 data URL for embedding in HTML
+
+    Args:
+        code: The text/code to encode in the QR code
+        box_size: Size of each box in the QR code grid
+        border: Border size around the QR code
+
+    Returns:
+        Data URL string
+    """
+    try:
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=box_size,
+            border=border,
+        )
+        qr.add_data(code)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        img_data = base64.b64encode(buffer.read()).decode('utf-8')
+        return f"data:image/png;base64,{img_data}"
+
+    except Exception as e:
+        print(f"Error generating QR code for {code}: {e}")
         return None

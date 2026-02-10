@@ -22,9 +22,22 @@ def scan_barcode():
     if not barcode:
         return jsonify({'error': 'No barcode provided'}), 400
 
-    # Try to find as item
+    # Parse SKU:QTY format (e.g. "AP210:500" from QR labels)
+    suggested_qty = None
+    lookup_code = barcode
+    if ':' in barcode:
+        parts = barcode.split(':', 1)
+        lookup_code = parts[0].strip()
+        try:
+            suggested_qty = int(parts[1].strip())
+        except (ValueError, IndexError):
+            suggested_qty = None
+
+    # Try to find as item (using parsed code or full barcode)
     item = Item.query.filter(
         db.or_(
+            Item.barcode == lookup_code,
+            Item.sku == lookup_code,
             Item.barcode == barcode,
             Item.sku == barcode
         ),
@@ -40,7 +53,7 @@ def scan_barcode():
             'available': sl.available_quantity
         } for sl in item.stock_levels.filter(StockLevel.quantity > 0).all()]
 
-        return jsonify({
+        result = {
             'type': 'item',
             'id': item.id,
             'sku': item.sku,
@@ -54,11 +67,17 @@ def scan_barcode():
             'is_low_stock': item.is_low_stock,
             'stock_levels': stock_levels,
             'context': context
-        })
+        }
+        if suggested_qty is not None:
+            result['suggested_qty'] = suggested_qty
+        return jsonify(result)
 
-    # Try to find as location
+    # Try to find as location (use lookup_code in case of SKU:QTY format that didn't match item)
     location = Location.query.filter(
-        Location.code == barcode.upper(),
+        db.or_(
+            Location.code == barcode.upper(),
+            Location.code == lookup_code.upper()
+        ),
         Location.is_active == True
     ).first()
 

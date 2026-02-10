@@ -267,7 +267,7 @@
 
                     {% if label_format.show_barcode %}
                     <div class="label-barcode">
-                        <img src="" alt="barcode" data-item-id="{{ item.id }}" class="barcode-img">
+                        <img src="" alt="barcode" data-item-id="{{ item.id }}" data-qty="{{ quantities.get(item.id, '') }}" class="barcode-img">
                     </div>
                     {% endif %}
 
@@ -292,10 +292,15 @@
     </div>
 
     <script>
-        // Load barcodes
+        // Load barcodes - if qty is set, generates QR code with SKU:QTY encoded
         document.querySelectorAll('.barcode-img').forEach(img => {
             const itemId = img.dataset.itemId;
-            fetch(`/labels/api/barcode/${itemId}`)
+            const qty = img.dataset.qty || '';
+            let url = `/labels/api/barcode/${itemId}`;
+            if (qty && qty !== '0' && qty !== 'None') {
+                url += `?qty=${qty}`;
+            }
+            fetch(url)
                 .then(r => r.json())
                 .then(data => {
                     if (data.data_url) {

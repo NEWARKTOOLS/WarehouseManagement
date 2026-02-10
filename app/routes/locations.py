@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
 from app.models.location import Location
@@ -379,4 +379,68 @@ def api_contents(location_id):
             'quantity': sl.quantity,
             'unit': sl.item.unit_of_measure
         } for sl in stock_levels]
+    })
+
+
+# ============== LOCATION LABELS ==============
+
+@locations_bp.route('/<int:location_id>/label')
+@login_required
+def location_label(location_id):
+    """Print a single location label"""
+    location = Location.query.get_or_404(location_id)
+    from app.utils.barcode import get_qr_data_url
+    qr_data_url = get_qr_data_url(location.code)
+
+    return render_template('locations/label_print.html',
+                           locations=[location],
+                           qr_codes={location.id: qr_data_url})
+
+
+@locations_bp.route('/labels', methods=['POST'])
+@login_required
+def print_labels():
+    """Print labels for selected locations"""
+    location_ids = request.form.getlist('location_ids')
+    zone = request.form.get('zone', '').strip().upper()
+
+    if zone and not location_ids:
+        # Print all locations in a zone
+        locations = Location.query.filter_by(zone=zone, is_active=True)\
+            .order_by(Location.code).all()
+    elif location_ids:
+        locations = Location.query.filter(
+            Location.id.in_([int(i) for i in location_ids])
+        ).order_by(Location.code).all()
+    else:
+        flash('Please select locations or a zone to print', 'error')
+        return redirect(url_for('locations.location_list'))
+
+    if not locations:
+        flash('No locations found to print', 'error')
+        return redirect(url_for('locations.location_list'))
+
+    # Generate QR codes for each location
+    from app.utils.barcode import get_qr_data_url
+    qr_codes = {}
+    for loc in locations:
+        qr_codes[loc.id] = get_qr_data_url(loc.code)
+
+    return render_template('locations/label_print.html',
+                           locations=locations,
+                           qr_codes=qr_codes)
+
+
+@locations_bp.route('/api/<int:location_id>/qr')
+@login_required
+def api_qr(location_id):
+    """Get QR code data URL for a location"""
+    location = Location.query.get_or_404(location_id)
+    from app.utils.barcode import get_qr_data_url
+    qr_data_url = get_qr_data_url(location.code)
+
+    return jsonify({
+        'location_id': location.id,
+        'code': location.code,
+        'data_url': qr_data_url
     })

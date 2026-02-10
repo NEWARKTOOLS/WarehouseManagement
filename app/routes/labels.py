@@ -132,17 +132,32 @@ def quick_label(item_id):
 @labels_bp.route('/api/barcode/<int:item_id>')
 @login_required
 def api_barcode(item_id):
-    """Get barcode data URL for an item"""
-    from app.utils.barcode import get_barcode_data_url
-
+    """Get barcode data URL for an item. If qty is provided, returns a QR code encoding SKU:QTY."""
     item = Item.query.get_or_404(item_id)
     barcode_code = item.barcode or item.sku
+    qty = request.args.get('qty', type=int)
 
-    data_url = get_barcode_data_url(barcode_code)
-
-    return jsonify({
-        'item_id': item.id,
-        'sku': item.sku,
-        'barcode': barcode_code,
-        'data_url': data_url
-    })
+    if qty and qty > 0:
+        # Generate QR code with SKU:QTY format for scanning with quantity
+        from app.utils.barcode import get_qr_data_url
+        qr_text = f"{barcode_code}:{qty}"
+        data_url = get_qr_data_url(qr_text)
+        return jsonify({
+            'item_id': item.id,
+            'sku': item.sku,
+            'barcode': qr_text,
+            'data_url': data_url,
+            'qty_encoded': qty,
+            'format': 'qr'
+        })
+    else:
+        # Standard barcode (no qty)
+        from app.utils.barcode import get_barcode_data_url
+        data_url = get_barcode_data_url(barcode_code)
+        return jsonify({
+            'item_id': item.id,
+            'sku': item.sku,
+            'barcode': barcode_code,
+            'data_url': data_url,
+            'format': 'barcode'
+        })

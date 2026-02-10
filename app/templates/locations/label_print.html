@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Labels</title>
+    <style>
+        @page {
+            size: 89mm 36mm;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f5f5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .no-print {
+            background: #333;
+            color: white;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .no-print button {
+            padding: 10px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .no-print .btn-print {
+            background: #28a745;
+            color: white;
+        }
+
+        .no-print .btn-back {
+            background: #6c757d;
+            color: white;
+        }
+
+        .labels-container {
+            padding: 80px 20px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .label {
+            width: 89mm;
+            height: 36mm;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 2mm 3mm;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            page-break-after: always;
+            page-break-inside: avoid;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .label-qr {
+            flex: 0 0 auto;
+            width: 28mm;
+            height: 28mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 3mm;
+        }
+
+        .label-qr img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .label-info {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .label-code {
+            font-weight: bold;
+            font-size: 16pt;
+            line-height: 1.1;
+            color: #000;
+            letter-spacing: 0.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .label-name {
+            font-size: 8pt;
+            line-height: 1.2;
+            color: #444;
+            margin-top: 1mm;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .label-zone {
+            font-size: 10pt;
+            font-weight: 600;
+            color: #333;
+            margin-top: 1.5mm;
+            display: inline-block;
+            background: #eee;
+            padding: 0.5mm 2mm;
+            border-radius: 2px;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+            }
+
+            .labels-container {
+                padding: 0;
+                gap: 0;
+            }
+
+            .label {
+                border: none;
+                margin: 0;
+                box-shadow: none;
+            }
+
+            .label-zone {
+                background: #eee;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <div>
+            <strong>Location Labels</strong> - {{ locations|length }} label(s)
+        </div>
+        <div>
+            <button class="btn-back" onclick="window.history.back()">Back</button>
+            <button class="btn-print" onclick="window.print()">Print Labels</button>
+        </div>
+    </div>
+
+    <div class="labels-container">
+        {% for loc in locations %}
+        <div class="label">
+            <div class="label-qr">
+                {% if qr_codes.get(loc.id) %}
+                <img src="{{ qr_codes[loc.id] }}" alt="QR {{ loc.code }}">
+                {% endif %}
+            </div>
+            <div class="label-info">
+                <div class="label-code">{{ loc.code }}</div>
+                <div class="label-name">{{ loc.name }}</div>
+                {% if loc.zone %}
+                <div><span class="label-zone">{{ loc.zone }}</span></div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
