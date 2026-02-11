@@ -49,15 +49,12 @@
                     <div class="row g-3">
                         <div class="col-md-5">
                             <label class="form-label">Item *</label>
-                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="addItemSelect">
-                            <select class="form-select item-searchable" name="item_id" required id="addItemSelect" size="5" style="height:auto;">
-                                <option value="">Select item...</option>
-                                {% for item in items %}
-                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">
-                                    {{ item.sku }} - {{ item.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                            <div class="item-picker" data-hidden="addItemHidden">
+                                <input type="text" class="form-control item-picker-search" placeholder="Search SKU, name, customer, barcode..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                                <input type="hidden" name="item_id" id="addItemHidden" required>
+                                <div class="item-picker-selected" style="display:none;"></div>
+                                <div class="item-picker-results list-group"></div>
+                            </div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Location *</label>
@@ -103,13 +100,12 @@
                     <div class="row g-3">
                         <div class="col-md-5">
                             <label class="form-label">Item *</label>
-                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="removeItemSelect">
-                            <select class="form-select item-searchable" name="item_id" required id="removeItemSelect" size="5" style="height:auto;">
-                                <option value="">Select item...</option>
-                                {% for item in items %}
-                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">{{ item.sku }} - {{ item.name }} ({{ item.total_stock }} in stock)</option>
-                                {% endfor %}
-                            </select>
+                            <div class="item-picker" data-hidden="removeItemHidden">
+                                <input type="text" class="form-control item-picker-search" placeholder="Search SKU, name, customer, barcode..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                                <input type="hidden" name="item_id" id="removeItemHidden" required>
+                                <div class="item-picker-selected" style="display:none;"></div>
+                                <div class="item-picker-results list-group"></div>
+                            </div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">From Location *</label>
@@ -162,13 +158,12 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Item *</label>
-                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="moveItemSelect">
-                            <select class="form-select item-searchable" name="item_id" required id="moveItemSelect" size="5" style="height:auto;">
-                                <option value="">Select item...</option>
-                                {% for item in items %}
-                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">{{ item.sku }} - {{ item.name }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="item-picker" data-hidden="moveItemHidden">
+                                <input type="text" class="form-control item-picker-search" placeholder="Search SKU, name, customer, barcode..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                                <input type="hidden" name="item_id" id="moveItemHidden" required>
+                                <div class="item-picker-selected" style="display:none;"></div>
+                                <div class="item-picker-results list-group"></div>
+                            </div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">From Location *</label>
@@ -267,12 +262,62 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .item-picker {
+        position: relative;
+    }
+    .item-picker-results {
+        position: absolute;
+        z-index: 1050;
+        left: 0;
+        right: 0;
+        max-height: 250px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        display: none;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: #fff;
+    }
+    .item-picker-results.show {
+        display: block;
+    }
+    .item-picker-results .list-group-item {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-left: none;
+        border-right: none;
+        font-size: 0.9rem;
+    }
+    .item-picker-results .list-group-item:active,
+    .item-picker-results .list-group-item.active {
+        background: #0d6efd;
+        color: #fff;
+    }
+    .item-picker-selected {
+        margin-top: 6px;
+        padding: 8px 12px;
+        background: #e8f5e9;
+        border: 1px solid #a5d6a7;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    .item-picker-selected .item-clear {
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 // Make only one collapse open at a time
 document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
     btn.addEventListener('click', function(e) {
-        // Close all other collapses
         document.querySelectorAll('.collapse.show').forEach(col => {
             if (col.id !== this.getAttribute('href').substring(1)) {
                 bootstrap.Collapse.getInstance(col)?.hide();
@@ -281,23 +326,102 @@ document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
     });
 });
 
-// Item search filtering for all three forms
-document.querySelectorAll('.item-search-input').forEach(input => {
-    const selectId = input.dataset.target;
-    const select = document.getElementById(selectId);
-    if (!select) return;
+// Build item data array once from server-rendered data
+const ALL_ITEMS = [
+    {% for item in items %}
+    {
+        id: {{ item.id }},
+        sku: {{ item.sku|tojson }},
+        name: {{ item.name|tojson }},
+        barcode: {{ (item.barcode or '')|tojson }},
+        customer: {{ (item.customer.name if item.customer else '')|tojson }},
+        category: {{ (item.category.name if item.category else '')|tojson }},
+        color: {{ (item.color or '')|tojson }},
+        stock: {{ item.total_stock|default(0) }},
+        unit: {{ (item.unit_of_measure or 'parts')|tojson }}
+    }{{ ',' if not loop.last }}
+    {% endfor %}
+];
 
-    const allOptions = Array.from(select.querySelectorAll('option'));
+// Searchable item picker
+document.querySelectorAll('.item-picker').forEach(picker => {
+    const searchInput = picker.querySelector('.item-picker-search');
+    const hiddenInput = document.getElementById(picker.dataset.hidden);
+    const results = picker.querySelector('.item-picker-results');
+    const selected = picker.querySelector('.item-picker-selected');
+    let debounceTimer = null;
 
-    input.addEventListener('input', function() {
-        const term = this.value.toLowerCase().trim();
-        allOptions.forEach(opt => {
-            if (!opt.value) { opt.style.display = ''; return; }
-            const sku = (opt.dataset.sku || '').toLowerCase();
-            const name = (opt.dataset.name || '').toLowerCase();
-            const text = opt.textContent.toLowerCase();
-            opt.style.display = (!term || sku.includes(term) || name.includes(term) || text.includes(term)) ? '' : 'none';
+    function search(term) {
+        term = term.toLowerCase().trim();
+        if (term.length < 1) { results.classList.remove('show'); return; }
+
+        const matches = ALL_ITEMS.filter(item => {
+            return item.sku.toLowerCase().includes(term)
+                || item.name.toLowerCase().includes(term)
+                || item.barcode.toLowerCase().includes(term)
+                || item.customer.toLowerCase().includes(term)
+                || item.category.toLowerCase().includes(term)
+                || item.color.toLowerCase().includes(term);
+        }).slice(0, 30);
+
+        results.innerHTML = '';
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="list-group-item text-muted">No items found</div>';
+            results.classList.add('show');
+            return;
+        }
+
+        matches.forEach(item => {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'list-group-item list-group-item-action';
+            let label = `<strong>${item.sku}</strong> — ${item.name}`;
+            if (item.customer) label += ` <span class="text-muted small">(${item.customer})</span>`;
+            if (item.stock !== undefined) label += ` <span class="badge bg-secondary ms-1">${item.stock} ${item.unit}</span>`;
+            el.innerHTML = label;
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                selectItem(item);
+            });
+            results.appendChild(el);
         });
+        results.classList.add('show');
+    }
+
+    function selectItem(item) {
+        hiddenInput.value = item.id;
+        searchInput.style.display = 'none';
+        results.classList.remove('show');
+        selected.innerHTML = `<div class="d-flex justify-content-between align-items-center">
+            <span><strong>${item.sku}</strong> — ${item.name}${item.customer ? ' <span class="text-muted">(' + item.customer + ')</span>' : ''}</span>
+            <span class="item-clear text-danger" title="Clear">&times;</span>
+        </div>`;
+        selected.style.display = 'block';
+        selected.querySelector('.item-clear').addEventListener('click', clearItem);
+    }
+
+    function clearItem() {
+        hiddenInput.value = '';
+        searchInput.value = '';
+        searchInput.style.display = '';
+        selected.style.display = 'none';
+        searchInput.focus();
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => search(this.value), 150);
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length >= 1) search(this.value);
+    });
+
+    // Close results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!picker.contains(e.target)) {
+            results.classList.remove('show');
+        }
     });
 });
 </script>
