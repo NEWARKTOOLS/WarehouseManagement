@@ -49,10 +49,11 @@
                     <div class="row g-3">
                         <div class="col-md-5">
                             <label class="form-label">Item *</label>
-                            <select class="form-select" name="item_id" required id="addItemSelect">
-                                <option value="">Search or select item...</option>
+                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="addItemSelect">
+                            <select class="form-select item-searchable" name="item_id" required id="addItemSelect" size="5" style="height:auto;">
+                                <option value="">Select item...</option>
                                 {% for item in items %}
-                                <option value="{{ item.id }}" data-sku="{{ item.sku }}">
+                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">
                                     {{ item.sku }} - {{ item.name }}
                                 </option>
                                 {% endfor %}
@@ -102,10 +103,11 @@
                     <div class="row g-3">
                         <div class="col-md-5">
                             <label class="form-label">Item *</label>
-                            <select class="form-select" name="item_id" required>
-                                <option value="">Search or select item...</option>
+                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="removeItemSelect">
+                            <select class="form-select item-searchable" name="item_id" required id="removeItemSelect" size="5" style="height:auto;">
+                                <option value="">Select item...</option>
                                 {% for item in items %}
-                                <option value="{{ item.id }}">{{ item.sku }} - {{ item.name }} ({{ item.total_stock }} in stock)</option>
+                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">{{ item.sku }} - {{ item.name }} ({{ item.total_stock }} in stock)</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -160,10 +162,11 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Item *</label>
-                            <select class="form-select" name="item_id" required>
-                                <option value="">Search or select item...</option>
+                            <input type="text" class="form-control mb-1 item-search-input" placeholder="Type to search SKU or name..." data-target="moveItemSelect">
+                            <select class="form-select item-searchable" name="item_id" required id="moveItemSelect" size="5" style="height:auto;">
+                                <option value="">Select item...</option>
                                 {% for item in items %}
-                                <option value="{{ item.id }}">{{ item.sku }} - {{ item.name }}</option>
+                                <option value="{{ item.id }}" data-sku="{{ item.sku }}" data-name="{{ item.name }}">{{ item.sku }} - {{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -274,6 +277,26 @@ document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
             if (col.id !== this.getAttribute('href').substring(1)) {
                 bootstrap.Collapse.getInstance(col)?.hide();
             }
+        });
+    });
+});
+
+// Item search filtering for all three forms
+document.querySelectorAll('.item-search-input').forEach(input => {
+    const selectId = input.dataset.target;
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    const allOptions = Array.from(select.querySelectorAll('option'));
+
+    input.addEventListener('input', function() {
+        const term = this.value.toLowerCase().trim();
+        allOptions.forEach(opt => {
+            if (!opt.value) { opt.style.display = ''; return; }
+            const sku = (opt.dataset.sku || '').toLowerCase();
+            const name = (opt.dataset.name || '').toLowerCase();
+            const text = opt.textContent.toLowerCase();
+            opt.style.display = (!term || sku.includes(term) || name.includes(term) || text.includes(term)) ? '' : 'none';
         });
     });
 });
