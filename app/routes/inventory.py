@@ -338,7 +338,8 @@ def receive_stock():
 
     items = Item.query.filter_by(is_active=True).order_by(Item.sku).all()
     locations = Location.query.filter_by(is_active=True).order_by(Location.code).all()
-    return render_template('inventory/receive.html', items=items, locations=locations)
+    preselect_item_id = request.args.get('item_id', type=int)
+    return render_template('inventory/receive.html', items=items, locations=locations, preselect_item_id=preselect_item_id)
 
 
 @inventory_bp.route('/move', methods=['GET', 'POST'])

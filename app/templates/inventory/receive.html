@@ -143,7 +143,25 @@ itemSelect.addEventListener('change', function() {
     document.getElementById('unitDisplay').textContent = unit;
 });
 
+// Pre-select item if passed via URL
+{% if preselect_item_id %}
+(function() {
+    const preId = '{{ preselect_item_id }}';
+    const option = itemSelect.querySelector(`option[value="${preId}"]`);
+    if (option) {
+        option.selected = true;
+        // Update unit display
+        const unit = option.dataset.unit || 'units';
+        document.getElementById('unitDisplay').textContent = unit;
+        // Put the item name in the search box so it's clear what's selected
+        itemSearch.value = option.dataset.sku + ' - ' + option.dataset.name;
+        // Focus location instead since item is already chosen
+        document.getElementById('locationSelect').focus();
+    }
+})();
+{% else %}
 // Focus search on page load
 itemSearch.focus();
+{% endif %}
 </script>
 {% endblock %}
