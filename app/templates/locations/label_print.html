@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Location Labels</title>
-    <style>
+    <style id="pageStyle">
         @page {
             size: 89mm 36mm;
             margin: 0;
         }
-
+    </style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -26,7 +27,7 @@
         .no-print {
             background: #333;
             color: white;
-            padding: 15px 20px;
+            padding: 12px 20px;
             position: fixed;
             top: 0;
             left: 0;
@@ -35,14 +36,29 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .no-print .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .no-print .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .no-print button {
-            padding: 10px 30px;
-            font-size: 16px;
+            padding: 8px 24px;
+            font-size: 15px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
+            font-weight: 600;
         }
 
         .no-print .btn-print {
@@ -55,8 +71,22 @@
             color: white;
         }
 
+        .no-print select {
+            padding: 6px 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+            font-size: 14px;
+        }
+
+        .no-print label {
+            font-size: 13px;
+            color: #ccc;
+        }
+
         .labels-container {
-            padding: 80px 20px 20px;
+            padding: 70px 20px 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
@@ -69,10 +99,10 @@
             background: white;
             border: 1px solid #ddd;
             border-radius: 3px;
-            padding: 2mm 3mm;
+            padding: 1.5mm;
             display: flex;
             flex-direction: row;
-            align-items: center;
+            align-items: stretch;
             page-break-after: always;
             page-break-inside: avoid;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -81,17 +111,15 @@
 
         .label-qr {
             flex: 0 0 auto;
-            width: 28mm;
-            height: 28mm;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 3mm;
+            padding: 0.5mm;
         }
 
         .label-qr img {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
         }
 
@@ -100,6 +128,7 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            padding-left: 2mm;
             min-width: 0;
             text-align: left;
         }
@@ -154,6 +183,7 @@
                 border: none;
                 margin: 0;
                 box-shadow: none;
+                border-radius: 0;
             }
 
             .label-zone {
@@ -166,12 +196,22 @@
 </head>
 <body>
     <div class="no-print">
-        <div>
-            <strong>Location Labels</strong> - {{ locations|length }} label(s)
+        <div class="toolbar-left">
+            <strong>Location Labels</strong>
+            <span style="color:#aaa;">{{ locations|length }} label(s)</span>
         </div>
-        <div>
-            <button class="btn-back" onclick="window.history.back()">Back</button>
-            <button class="btn-print" onclick="window.print()">Print Labels</button>
+        <div class="toolbar-right">
+            <label for="labelSize">Label:</label>
+            <select id="labelSize">
+                <option value="89,36" selected>Dymo 99012 (89×36mm)</option>
+                <option value="101,54">Dymo 99014 (101×54mm)</option>
+                <option value="57,32">Dymo 11354 (57×32mm)</option>
+                <option value="51,19">Dymo 30323 (51×19mm)</option>
+                <option value="25,25">Dymo 30332 (25×25mm)</option>
+                <option value="62,29">Dymo 30330 (62×29mm)</option>
+            </select>
+            <button class="btn-back" onclick="window.location.href='/locations'">Back</button>
+            <button class="btn-print" onclick="window.print()">🖨 Print</button>
         </div>
     </div>
 
@@ -193,5 +233,56 @@
         </div>
         {% endfor %}
     </div>
+
+    <script>
+        const PRESETS = {
+            '89,36':  { w: 89, h: 36 },
+            '101,54': { w: 101, h: 54 },
+            '57,32':  { w: 57, h: 32 },
+            '51,19':  { w: 51, h: 19 },
+            '25,25':  { w: 25, h: 25 },
+            '62,29':  { w: 62, h: 29 },
+        };
+
+        function applyLabelSize(w, h) {
+            document.getElementById('pageStyle').textContent =
+                `@page { size: ${w}mm ${h}mm; margin: 0; }`;
+
+            document.querySelectorAll('.label').forEach(el => {
+                el.style.width = w + 'mm';
+                el.style.height = h + 'mm';
+            });
+
+            // Scale QR to fill height
+            const qrSize = Math.max(h - 3, 8);
+            document.querySelectorAll('.label-qr').forEach(el => {
+                el.style.width = qrSize + 'mm';
+                el.style.height = qrSize + 'mm';
+            });
+
+            // Scale fonts for small labels
+            if (h <= 20) {
+                document.querySelectorAll('.label-code').forEach(el => el.style.fontSize = '9pt');
+                document.querySelectorAll('.label-name').forEach(el => el.style.fontSize = '5pt');
+                document.querySelectorAll('.label-zone').forEach(el => el.style.fontSize = '6pt');
+            } else if (h <= 30) {
+                document.querySelectorAll('.label-code').forEach(el => el.style.fontSize = '12pt');
+                document.querySelectorAll('.label-name').forEach(el => el.style.fontSize = '7pt');
+                document.querySelectorAll('.label-zone').forEach(el => el.style.fontSize = '8pt');
+            } else {
+                document.querySelectorAll('.label-code').forEach(el => el.style.fontSize = '16pt');
+                document.querySelectorAll('.label-name').forEach(el => el.style.fontSize = '8pt');
+                document.querySelectorAll('.label-zone').forEach(el => el.style.fontSize = '10pt');
+            }
+        }
+
+        document.getElementById('labelSize').addEventListener('change', function() {
+            const p = PRESETS[this.value];
+            if (p) applyLabelSize(p.w, p.h);
+        });
+
+        // Apply default
+        applyLabelSize(89, 36);
+    </script>
 </body>
 </html>

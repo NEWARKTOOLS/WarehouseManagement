@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Print Labels</title>
-    <style>
+    <style id="pageStyle">
         @page {
-            size: {{ label_format.label_width }}mm {{ label_format.label_height }}mm;
+            size: 89mm 36mm;
             margin: 0;
         }
-
+    </style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -26,7 +27,7 @@
         .no-print {
             background: #333;
             color: white;
-            padding: 15px 20px;
+            padding: 12px 20px;
             position: fixed;
             top: 0;
             left: 0;
@@ -35,14 +36,29 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .no-print .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .no-print .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .no-print button {
-            padding: 10px 30px;
-            font-size: 16px;
+            padding: 8px 24px;
+            font-size: 15px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
+            font-weight: 600;
         }
 
         .no-print .btn-print {
@@ -55,8 +71,22 @@
             color: white;
         }
 
+        .no-print select {
+            padding: 6px 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+            font-size: 14px;
+        }
+
+        .no-print label {
+            font-size: 13px;
+            color: #ccc;
+        }
+
         .labels-container {
-            padding: 80px 20px 20px;
+            padding: 70px 20px 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
@@ -64,36 +94,32 @@
         }
 
         .label {
-            width: {{ label_format.label_width }}mm;
-            height: {{ label_format.label_height }}mm;
+            width: 89mm;
+            height: 36mm;
             background: white;
             border: 1px solid #ddd;
             border-radius: 3px;
-            padding: 1.5mm 2mm;
+            padding: 1.5mm;
             display: flex;
             flex-direction: row;
             align-items: stretch;
-            justify-content: center;
-            text-align: center;
             page-break-after: always;
             page-break-inside: avoid;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             overflow: hidden;
         }
 
-        .label-image {
+        .label-qr {
             flex: 0 0 auto;
-            width: {{ label_format.label_height - 4 }}mm;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1.5mm;
-            overflow: hidden;
+            padding: 0.5mm;
         }
 
-        .label-image img {
-            max-width: 100%;
-            max-height: 100%;
+        .label-qr img {
+            width: 100%;
+            height: 100%;
             object-fit: contain;
         }
 
@@ -101,105 +127,75 @@
             flex: 1 1 auto;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: flex-start;
+            padding-left: 1.5mm;
             min-width: 0;
+            overflow: hidden;
         }
 
         .label-company {
             font-weight: bold;
-            font-size: clamp(7pt, 2.5vw, 10pt);
+            font-size: 8pt;
             line-height: 1.1;
             color: #222;
-            letter-spacing: 0.3px;
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            flex-shrink: 0;
         }
 
         .label-name {
-            font-size: clamp(6pt, 2vw, 8pt);
-            line-height: 1.1;
+            font-size: 7pt;
+            line-height: 1.15;
+            color: #444;
+            margin-top: 0.3mm;
+            width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: #444;
-            margin: 0.5mm 0;
-            width: 100%;
-            flex-shrink: 0;
-        }
-
-        .label-barcode {
-            flex: 1 1 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 8mm;
-            max-height: 18mm;
-            width: 100%;
-            padding: 0.5mm 0;
-            overflow: hidden;
-        }
-
-        .label-barcode img {
-            max-width: 100%;
-            max-height: 100%;
-            height: 100%;
-            object-fit: contain;
         }
 
         .label-sku {
-            font-size: clamp(6pt, 2vw, 8pt);
-            font-weight: 600;
-            color: #333;
+            font-size: 8pt;
+            font-weight: 700;
+            color: #000;
             letter-spacing: 0.5px;
+            margin-top: 0.5mm;
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            flex-shrink: 0;
         }
 
         .label-qty {
             font-weight: bold;
-            font-size: clamp(8pt, 3vw, 12pt);
-            background: #222;
+            font-size: 9pt;
+            background: #000;
             color: #fff;
-            padding: 0.5mm 2mm;
+            padding: 0.3mm 2mm;
             margin-top: 0.5mm;
-            border-radius: 2px;
-            letter-spacing: 0.5px;
-            width: 100%;
-            text-align: center;
-            flex-shrink: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            border-radius: 1.5px;
+            display: inline-block;
         }
 
         .label-qty-blank {
             margin-top: 0.5mm;
-            padding: 0.5mm 0;
             display: flex;
             align-items: baseline;
-            justify-content: center;
             gap: 1.5mm;
-            width: 100%;
-            flex-shrink: 0;
         }
 
         .label-qty-blank .qty-label {
-            font-size: clamp(6pt, 2vw, 8pt);
+            font-size: 7pt;
             font-weight: 600;
             color: #333;
         }
 
         .label-qty-blank .qty-line {
             border-bottom: 1.5px solid #333;
-            min-width: 12mm;
-            height: 10pt;
+            min-width: 10mm;
+            height: 8pt;
         }
 
         @media print {
@@ -220,30 +216,29 @@
                 border: none;
                 margin: 0;
                 box-shadow: none;
+                border-radius: 0;
             }
-        }
-
-        /* Dymo label specific sizes */
-        @media print {
-            /* Small labels (e.g., 25x54mm Dymo return address) */
-            {% if label_format.label_width <= 60 %}
-            .label-company { font-size: 7pt; }
-            .label-name { font-size: 6pt; }
-            .label-sku { font-size: 6pt; }
-            .label-qty { font-size: 8pt; padding: 0.3mm 1mm; }
-            .label-barcode { min-height: 6mm; max-height: 10mm; }
-            {% endif %}
         }
     </style>
 </head>
 <body>
     <div class="no-print">
-        <div>
-            <strong>Label Preview</strong> - {{ items|length }} item(s), {{ copies.values()|sum }} label(s) total
+        <div class="toolbar-left">
+            <strong>Labels</strong>
+            <span style="color:#aaa;">{{ items|length }} item(s), {{ copies.values()|sum }} label(s)</span>
         </div>
-        <div>
-            <button class="btn-back" onclick="window.history.back()">Back</button>
-            <button class="btn-print" onclick="window.print()">Print Labels</button>
+        <div class="toolbar-right">
+            <label for="labelSize">Label:</label>
+            <select id="labelSize">
+                <option value="89,36" selected>Dymo 99012 (89×36mm)</option>
+                <option value="101,54">Dymo 99014 (101×54mm)</option>
+                <option value="57,32">Dymo 11354 (57×32mm)</option>
+                <option value="51,19">Dymo 30323 (51×19mm)</option>
+                <option value="25,25">Dymo 30332 (25×25mm)</option>
+                <option value="62,29">Dymo 30330 (62×29mm)</option>
+            </select>
+            <button class="btn-back" onclick="window.location.href='/labels'">Back</button>
+            <button class="btn-print" onclick="window.print()">🖨 Print</button>
         </div>
     </div>
 
@@ -251,9 +246,9 @@
         {% for item in items %}
             {% for copy in range(copies.get(item.id, 1)) %}
             <div class="label">
-                {% if label_format.show_image and item.image_filename %}
-                <div class="label-image">
-                    <img src="{{ url_for('main.uploaded_file', filename=item.image_filename) }}" alt="{{ item.name }}">
+                {% if label_format.show_barcode %}
+                <div class="label-qr">
+                    <img src="" alt="QR" data-item-id="{{ item.id }}" data-qty="{{ quantities.get(item.id, '') }}" class="barcode-img">
                 </div>
                 {% endif %}
                 <div class="label-content">
@@ -263,12 +258,6 @@
 
                     {% if label_format.show_name %}
                     <div class="label-name">{{ item.name }}</div>
-                    {% endif %}
-
-                    {% if label_format.show_barcode %}
-                    <div class="label-barcode">
-                        <img src="" alt="barcode" data-item-id="{{ item.id }}" data-qty="{{ quantities.get(item.id, '') }}" class="barcode-img">
-                    </div>
                     {% endif %}
 
                     {% if label_format.show_sku %}
@@ -292,7 +281,69 @@
     </div>
 
     <script>
-        // Load barcodes - if qty is set, generates QR code with SKU:QTY encoded
+        // Label size presets — dynamically update @page and .label dimensions
+        const PRESETS = {
+            '89,36':  { w: 89, h: 36 },
+            '101,54': { w: 101, h: 54 },
+            '57,32':  { w: 57, h: 32 },
+            '51,19':  { w: 51, h: 19 },
+            '25,25':  { w: 25, h: 25 },
+            '62,29':  { w: 62, h: 29 },
+        };
+
+        function applyLabelSize(w, h) {
+            // Update @page
+            document.getElementById('pageStyle').textContent =
+                `@page { size: ${w}mm ${h}mm; margin: 0; }`;
+
+            // Update label divs
+            document.querySelectorAll('.label').forEach(el => {
+                el.style.width = w + 'mm';
+                el.style.height = h + 'mm';
+            });
+
+            // Scale QR to fill height (minus padding)
+            const qrSize = Math.max(h - 3, 8);
+            document.querySelectorAll('.label-qr').forEach(el => {
+                el.style.width = qrSize + 'mm';
+                el.style.height = qrSize + 'mm';
+            });
+
+            // Scale fonts for very small labels
+            const scale = Math.min(h / 36, 1); // ratio vs default 36mm height
+            const root = document.documentElement;
+            if (h <= 20) {
+                root.style.setProperty('--company-size', '5pt');
+                root.style.setProperty('--name-size', '4.5pt');
+                root.style.setProperty('--sku-size', '5.5pt');
+                root.style.setProperty('--qty-size', '6pt');
+            } else if (h <= 30) {
+                root.style.setProperty('--company-size', '7pt');
+                root.style.setProperty('--name-size', '6pt');
+                root.style.setProperty('--sku-size', '7pt');
+                root.style.setProperty('--qty-size', '7pt');
+            } else {
+                root.style.setProperty('--company-size', '8pt');
+                root.style.setProperty('--name-size', '7pt');
+                root.style.setProperty('--sku-size', '8pt');
+                root.style.setProperty('--qty-size', '9pt');
+            }
+
+            document.querySelectorAll('.label-company').forEach(el => el.style.fontSize = 'var(--company-size)');
+            document.querySelectorAll('.label-name').forEach(el => el.style.fontSize = 'var(--name-size)');
+            document.querySelectorAll('.label-sku').forEach(el => el.style.fontSize = 'var(--sku-size)');
+            document.querySelectorAll('.label-qty').forEach(el => el.style.fontSize = 'var(--qty-size)');
+        }
+
+        document.getElementById('labelSize').addEventListener('change', function() {
+            const p = PRESETS[this.value];
+            if (p) applyLabelSize(p.w, p.h);
+        });
+
+        // Apply default on load
+        applyLabelSize(89, 36);
+
+        // Load QR codes
         document.querySelectorAll('.barcode-img').forEach(img => {
             const itemId = img.dataset.itemId;
             const qty = img.dataset.qty || '';

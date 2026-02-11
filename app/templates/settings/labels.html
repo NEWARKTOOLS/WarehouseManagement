@@ -23,30 +23,12 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="card mb-3">
-                    <div class="card-header">Label Size (Dymo Compatible)</div>
+                    <div class="card-header">Label Size</div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Label Width (mm)</label>
-                                <select class="form-select" name="label_width" id="labelWidth">
-                                    <option value="89" {{ 'selected' if settings.label_width == 89 }}>89mm (Dymo 99012 Large Address)</option>
-                                    <option value="101" {{ 'selected' if settings.label_width == 101 }}>101mm (Dymo 99014 Shipping)</option>
-                                    <option value="57" {{ 'selected' if settings.label_width == 57 }}>57mm (Dymo 11354 Multi-Purpose)</option>
-                                    <option value="54" {{ 'selected' if settings.label_width == 54 }}>54mm (Dymo 99015 Diskette)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Label Height (mm)</label>
-                                <select class="form-select" name="label_height" id="labelHeight">
-                                    <option value="36" {{ 'selected' if settings.label_height == 36 }}>36mm (Standard)</option>
-                                    <option value="54" {{ 'selected' if settings.label_height == 54 }}>54mm (Large)</option>
-                                    <option value="32" {{ 'selected' if settings.label_height == 32 }}>32mm (Small)</option>
-                                    <option value="25" {{ 'selected' if settings.label_height == 25 }}>25mm (Mini)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-text mt-2">
-                            Common Dymo sizes: 99012 (89x36mm), 99014 (101x54mm), 11354 (57x32mm)
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Label size is now selected on the print page.</strong><br>
+                            When you print labels, you'll see a dropdown to choose your Dymo label type (30323, 99012, 99014, etc.) right next to the Print button. The label content will auto-scale to fit.
                         </div>
                     </div>
                 </div>
@@ -82,8 +64,8 @@
                                     <input class="form-check-input" type="checkbox" name="label_show_barcode" id="showBarcode"
                                            {{ 'checked' if settings.label_show_barcode }}>
                                     <label class="form-check-label" for="showBarcode">
-                                        <strong>Barcode</strong>
-                                        <br><small class="text-muted">Scannable Code128 barcode</small>
+                                        <strong>QR Code</strong>
+                                        <br><small class="text-muted">Scannable QR code (encodes SKU or SKU:QTY)</small>
                                     </label>
                                 </div>
                             </div>

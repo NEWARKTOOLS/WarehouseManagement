@@ -143,11 +143,8 @@ def labels():
     settings = CompanySettings.get_settings()
 
     if request.method == 'POST':
-        # Label size
-        settings.label_width = request.form.get('label_width', 89, type=int)
-        settings.label_height = request.form.get('label_height', 36, type=int)
-
         # Label content toggles (checkboxes - not present = False)
+        # Note: label size is now selected on the print page, not in settings
         settings.label_show_company = 'label_show_company' in request.form
         settings.label_show_sku = 'label_show_sku' in request.form
         settings.label_show_name = 'label_show_name' in request.form
