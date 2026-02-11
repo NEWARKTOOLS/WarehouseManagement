@@ -75,6 +75,27 @@ def machine_edit(machine_id):
     return render_template('production/machine_form.html', machine=machine)
 
 
+@production_bp.route('/machines/<int:machine_id>/delete', methods=['POST'])
+@login_required
+def machine_delete(machine_id):
+    """Delete (deactivate) a machine"""
+    machine = Machine.query.get_or_404(machine_id)
+
+    # Check if machine has active production orders
+    active_orders = ProductionOrder.query.filter_by(
+        machine_id=machine.id, status='in_progress'
+    ).count()
+    if active_orders > 0:
+        flash(f'Cannot delete {machine.name} — it has {active_orders} active production order(s)', 'error')
+        return redirect(url_for('production.machine_list'))
+
+    machine.is_active = False
+    machine.status = 'offline'
+    db.session.commit()
+    flash(f'Machine {machine.name} removed', 'success')
+    return redirect(url_for('production.machine_list'))
+
+
 # Production Orders
 @production_bp.route('/orders')
 @login_required
